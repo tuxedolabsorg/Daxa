@@ -206,7 +206,7 @@ namespace daxa
             }
         }
         auto texture_staging_buffer = daxa::BufferId{};
-        u8 * staging_buffer_data;
+        u8 * staging_buffer_data = nullptr;
         if (staging_size != 0)
         {
             texture_staging_buffer = this->info.device.create_buffer({
