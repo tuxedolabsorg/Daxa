@@ -282,8 +282,8 @@ namespace daxa
                     auto image_id = get_daxa_image(info.device, tex);
 
                     recorder.pipeline_barrier_image_transition({
-                        .src_access = daxa::AccessConsts::HOST_WRITE,
-                        .dst_access = daxa::AccessConsts::TRANSFER_READ_WRITE,
+                        .src_access = daxa::AccessConsts::READ_WRITE,
+                        .dst_access = daxa::AccessConsts::TRANSFER_WRITE,
                         .dst_layout = daxa::ImageLayout::TRANSFER_DST_OPTIMAL,
                         .image_id = image_id,
                     });

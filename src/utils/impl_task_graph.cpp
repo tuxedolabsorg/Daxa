@@ -274,9 +274,9 @@ namespace daxa
 
     auto access_to_usage(TaskAccess const & taccess) -> ImageUsageFlags
     {
-        bool const used_as_read = (static_cast<u32>(taccess.type) & static_cast<u32>(TaskAccessType::READ)) != 0;
-        bool const used_as_write = (static_cast<u32>(taccess.type) & static_cast<u32>(TaskAccessType::WRITE)) != 0;
-        bool const used_as_sampled = (static_cast<u32>(taccess.type) & static_cast<u32>(TaskAccessType::SAMPLED)) != 0;
+        bool const used_as_read = (static_cast<u32>(taccess.type) & static_cast<u32>(TaskAccessType::READ)) == static_cast<u32>(TaskAccessType::READ);
+        bool const used_as_write = (static_cast<u32>(taccess.type) & static_cast<u32>(TaskAccessType::WRITE)) == static_cast<u32>(TaskAccessType::WRITE);
+        bool const used_as_sampled = (static_cast<u32>(taccess.type) & static_cast<u32>(TaskAccessType::SAMPLED)) == static_cast<u32>(TaskAccessType::SAMPLED);
         bool const used_in_shader = is_task_stage_shader_access(taccess.stage);
         bool const used_as_sampled_image = used_in_shader && used_as_sampled;
         bool const used_as_storage_image = used_in_shader && (used_as_read || used_as_write);
