@@ -515,7 +515,7 @@ namespace daxa
         this->info.device.destroy_buffer(this->ibuffer);
         this->info.device.destroy_sampler(this->default_sampler);
         for (ImTextureData * tex : ImGui::GetPlatformIO().Textures)
-            if (tex->RefCount == 1)
+            if (tex->RefCount == 1 && tex->Status != ImTextureStatus_WantCreate)
                 delete_texture(tex);
     }
 
