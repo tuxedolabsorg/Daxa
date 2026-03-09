@@ -86,6 +86,8 @@ target_compile_definitions(daxa
 
 if(DAXA_USE_STATIC_CRT AND CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     set_property(TARGET ${PROJECT_NAME} PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+    set_source_files_properties("src/impl_dependencies.cpp" PROPERTIES COMPILE_FLAGS "-Wno-everything")
 endif()
 
 if(DAXA_ENABLE_UTILS_FSR2)
@@ -107,7 +109,7 @@ if(DAXA_ENABLE_UTILS_IMGUI)
     )
     # find_package(imgui CONFIG REQUIRED)
     target_link_libraries(daxa
-        PUBLIC
+        PRIVATE
         imgui
     )
 endif()
@@ -186,10 +188,10 @@ if(DAXA_ENABLE_UTILS_TASK_GRAPH)
         DAXA_BUILT_WITH_UTILS_TASK_GRAPH=true
     )
 endif()
-if(TARGET tlib)
-    target_compile_definitions(daxa PRIVATE DAXA_BUILT_WITH_TLIB=true)
-    target_link_libraries(daxa PRIVATE tlib)
-endif()
+# if(TARGET tlib)
+#     target_compile_definitions(daxa PRIVATE DAXA_BUILT_WITH_TLIB=true)
+#     target_link_libraries(daxa PRIVATE tlib)
+# endif()
 
 target_link_libraries(daxa
     PRIVATE
