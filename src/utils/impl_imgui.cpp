@@ -598,7 +598,7 @@ daxa_f32vec4 linear_to_srgb(daxa_f32vec4 linear)
 
 void main()
 {
-    fColor = srgb_to_linear(In.Color) * texture(daxa_sampler2D(push.texture0_id, push.sampler0_id), In.UV.st);
+    fColor = srgb_to_linear(In.Color) * texture(nonuniformEXT(daxa_sampler2D(push.texture0_id, push.sampler0_id)), In.UV.st);
 #if defined(GAMMA_CORRECTION)
     fColor = linear_to_srgb(fColor);
 #endif
