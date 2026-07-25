@@ -1730,6 +1730,8 @@ auto daxa_ImplDevice::create_2(daxa_Instance instance, daxa_DeviceInfo2 const & 
         }
     };
 
+    volkLoadDevice(self->vk_device);
+
     // Queue initialization:
     defer
     {

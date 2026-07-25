@@ -10,6 +10,8 @@
 
 auto daxa_create_instance(daxa_InstanceInfo const * info, daxa_Instance * out_instance) -> daxa_Result
 {
+    volkInitialize();
+
     auto ret = daxa_ImplInstance{};
     ret.info = *reinterpret_cast<InstanceInfo const *>(info);
     ret.engine_name = {ret.info.engine_name.data(), ret.info.engine_name.size()};
@@ -97,6 +99,8 @@ auto daxa_create_instance(daxa_InstanceInfo const * info, daxa_Instance * out_in
     };
     result = static_cast<daxa_Result>(vkCreateInstance(&instance_ci, nullptr, &ret.vk_instance));
     _DAXA_RETURN_IF_ERROR(result, result);
+
+    volkLoadInstance(ret.vk_instance);
 
     result = ret.initialize_physical_devices();
     _DAXA_RETURN_IF_ERROR(result, result);

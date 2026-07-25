@@ -1,6 +1,7 @@
 #ifndef __DAXA_TYPES_H__
 #define __DAXA_TYPES_H__
 
+#include <volk/volk.h>
 #include <vulkan/vulkan.h>
 #include <daxa/c/core.h>
 

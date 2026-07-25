@@ -54,6 +54,8 @@ add_library(daxa
     "src/utils/impl_imgui.cpp"
     "src/utils/impl_fsr2.cpp"
     "src/utils/impl_mem.cpp"
+
+    "include/volk/volk.c"
 )
 
 add_library(daxa::daxa ALIAS daxa)
@@ -73,11 +75,6 @@ else()
 endif()
 
 target_compile_features(daxa PUBLIC cxx_std_20)
-
-find_package(Vulkan REQUIRED)
-# find_package(VulkanMemoryAllocator CONFIG REQUIRED)
-
-include(GNUInstallDirs)
 
 target_compile_definitions(daxa
     PUBLIC
@@ -118,35 +115,6 @@ if(DAXA_ENABLE_UTILS_MEM)
         PUBLIC
         DAXA_BUILT_WITH_UTILS_MEM=true
     )
-endif()
-if(DAXA_ENABLE_UTILS_PIPELINE_MANAGER_GLSLANG)
-    target_compile_definitions(daxa
-        PUBLIC
-        DAXA_BUILT_WITH_UTILS_PIPELINE_MANAGER_GLSLANG=true
-    )
-    # find_package(glslang CONFIG REQUIRED)
-
-    set(GLSLANG_WRAPPER_SOURCES
-        "src/utils/glslang_wrapper/wrapper.cpp"
-        "src/utils/glslang_wrapper/wrapper.hpp"
-    )
-
-    add_library(${PROJECT_NAME}_glslang_wrapper SHARED)
-    target_sources(${PROJECT_NAME}_glslang_wrapper PRIVATE ${GLSLANG_WRAPPER_SOURCES})
-    target_compile_features(${PROJECT_NAME}_glslang_wrapper PUBLIC cxx_std_20)
-    target_compile_definitions(${PROJECT_NAME}_glslang_wrapper PRIVATE _ITERATOR_DEBUG_LEVEL=0)
-    set_property(TARGET ${PROJECT_NAME}_glslang_wrapper PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
-    find_package(Threads REQUIRED)
-    target_link_libraries(${PROJECT_NAME}_glslang_wrapper
-        PRIVATE
-        Vulkan::Vulkan # for glslang include directory
-        $ENV{VULKAN_SDK}/Lib/shaderc_combined.lib
-        # Vulkan::glslang
-        # Vulkan::glslang-spirv
-        # glslang::glslang
-        # glslang::SPIRV
-    )
-    target_link_libraries(daxa PUBLIC ${PROJECT_NAME}_glslang_wrapper)
 endif()
 if(DAXA_ENABLE_UTILS_PIPELINE_MANAGER_SLANG)
     target_compile_definitions(daxa
@@ -192,12 +160,6 @@ endif()
 #     target_compile_definitions(daxa PRIVATE DAXA_BUILT_WITH_TLIB=true)
 #     target_link_libraries(daxa PRIVATE tlib)
 # endif()
-
-target_link_libraries(daxa
-    PRIVATE
-    # GPUOpen::VulkanMemoryAllocator
-    Vulkan::Vulkan
-)
 
 target_include_directories(daxa
     PRIVATE
