@@ -235,6 +235,20 @@ auto daxa_swp_current_cpu_timeline_value(daxa_Swapchain self) -> u64
     return self->cpu_frame_timeline;
 }
 
+auto daxa_swp_current_present_id(daxa_Swapchain self) -> u64
+{
+    return self->present_id;
+}
+
+auto daxa_swp_wait_for_present(daxa_Swapchain self, u64 present_id, u64 timeout) -> daxa_Result
+{
+    if ((self->device->properties.implicit_features & DAXA_IMPLICIT_FEATURE_FLAG_PRESENT_WAIT) == 0)
+    {
+        return DAXA_RESULT_ERROR_FEATURE_NOT_PRESENT;
+    }
+    return static_cast<daxa_Result>(vkWaitForPresentKHR(self->device->vk_device, self->vk_swapchain, present_id, timeout));
+}
+
 auto daxa_swp_info(daxa_Swapchain self) -> daxa_SwapchainInfo const *
 {
     return reinterpret_cast<daxa_SwapchainInfo const *>(&self->info);
@@ -302,6 +316,7 @@ auto daxa_ImplSwapchain::recreate() -> daxa_Result
     _DAXA_RETURN_IF_ERROR(result, result)
 
     this->partial_cleanup();
+    this->present_id = 0;
 
     ImageUsageFlags const usage = std::bit_cast<ImageUsageFlags>(info.image_usage) | ImageUsageFlagBits::COLOR_ATTACHMENT;
 

@@ -59,6 +59,9 @@ struct daxa_ImplSwapchain final : ImplHandle
     // This is the swapchain image index that acquire returns. THis is not necessarily linear.
     // This index must be used for present semaphores as they are paired to the images.
     u32 current_image_index = {};
+    // Id attached to the most recent present when present wait is supported, 0 when there was none.
+    // Present ids are per VkSwapchainKHR, so this restarts on recreate.
+    u64 present_id = {};
 
     void partial_cleanup();
     void full_cleanup();

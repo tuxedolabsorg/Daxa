@@ -302,6 +302,8 @@ namespace daxa
         static inline constexpr ImplicitFeatureFlags SHADER_INT16 = {0x1 << 13};
         static inline constexpr ImplicitFeatureFlags SHADER_CLOCK = {0x1 << 14};
         static inline constexpr ImplicitFeatureFlags LINE_RASTERIZATION = {0x1 << 15};
+        static inline constexpr ImplicitFeatureFlags PRESENT_WAIT = {0x1 << 16};
+        static inline constexpr ImplicitFeatureFlags CALIBRATED_TIMESTAMPS = {0x1 << 17};
     };
 
     struct DeviceProperties
@@ -645,6 +647,17 @@ namespace daxa
         /// * SoftwareCommandRecorder is exempt from this limitation,
         ///   you can freely record those in parallel with collect_garbage
         void collect_garbage();
+
+        struct CalibratedTimestamps
+        {
+            u64 device_timestamp = {};
+            u64 host_timestamp = {};
+            u64 max_deviation = {};
+        };
+        /// @brief  Samples the device timestamp clock (same clock as timestamp queries) and the host clock at the same moment.
+        ///         The host clock is `QueryPerformanceCounter` on Windows and `CLOCK_MONOTONIC` on Linux.
+        ///         Requires `ImplicitFeatureFlagBits::CALIBRATED_TIMESTAMPS`.
+        [[nodiscard]] auto get_calibrated_timestamps() const -> CalibratedTimestamps;
 
         /// THREADSAFETY:
         /// * reference MUST NOT be read after the device is destroyed.
