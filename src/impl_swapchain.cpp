@@ -103,32 +103,6 @@ auto daxa_dvc_create_swapchain(daxa_Device device, daxa_SwapchainInfo const * in
         ret.full_cleanup();
         return result;
     }
-    // We have an acquire semaphore for each frame in flight.
-    for (u32 i = 0; i < ret.info.max_allowed_frames_in_flight; i++)
-    {
-        BinarySemaphore sema = {};
-        daxa_BinarySemaphoreInfo const sema_info = {};
-        result = daxa_dvc_create_binary_semaphore(device, &sema_info, reinterpret_cast<daxa_BinarySemaphore *>(&sema));
-        if (result != DAXA_RESULT_SUCCESS)
-        {
-            ret.full_cleanup();
-            return result;
-        }
-        ret.acquire_semaphores.push_back(std::move(sema));
-    }
-    // We have a present semaphore for each swapchain image.
-    for (u32 i = 0; i < ret.images.size(); i++)
-    {
-        BinarySemaphore sema = {};
-        daxa_BinarySemaphoreInfo const sema_info = {};
-        result = daxa_dvc_create_binary_semaphore(device, &sema_info, reinterpret_cast<daxa_BinarySemaphore *>(&sema));
-        if (result != DAXA_RESULT_SUCCESS)
-        {
-            ret.full_cleanup();
-            return result;
-        }
-        ret.present_semaphores.push_back(std::move(sema));
-    }
 
     auto timeline_sema_name = SmallString(std::string{ret.info.name.view()} + " ts");
     auto timeline_sema_info = daxa_TimelineSemaphoreInfo{
@@ -237,7 +211,7 @@ auto daxa_swp_current_cpu_timeline_value(daxa_Swapchain self) -> u64
 
 auto daxa_swp_current_present_id(daxa_Swapchain self) -> u64
 {
-    return self->present_id;
+    return self->valid_present_id;
 }
 
 auto daxa_swp_wait_for_present(daxa_Swapchain self, u64 present_id, u64 timeout) -> daxa_Result
@@ -316,7 +290,6 @@ auto daxa_ImplSwapchain::recreate() -> daxa_Result
     _DAXA_RETURN_IF_ERROR(result, result)
 
     this->partial_cleanup();
-    this->present_id = 0;
 
     ImageUsageFlags const usage = std::bit_cast<ImageUsageFlags>(info.image_usage) | ImageUsageFlagBits::COLOR_ATTACHMENT;
 
@@ -389,6 +362,25 @@ auto daxa_ImplSwapchain::recreate() -> daxa_Result
         _DAXA_RETURN_IF_ERROR(result, result)
 
         this->images[i] = id;
+    }
+
+    this->acquire_semaphores.clear();
+    this->present_semaphores.clear();
+    for (u32 i = 0; i < this->info.max_allowed_frames_in_flight; i++)
+    {
+        BinarySemaphore sema = {};
+        daxa_BinarySemaphoreInfo const sema_info = {};
+        result = daxa_dvc_create_binary_semaphore(this->device, &sema_info, r_cast<daxa_BinarySemaphore *>(&sema));
+        _DAXA_RETURN_IF_ERROR(result, result)
+        this->acquire_semaphores.push_back(std::move(sema));
+    }
+    for (u32 i = 0; i < this->images.size(); i++)
+    {
+        BinarySemaphore sema = {};
+        daxa_BinarySemaphoreInfo const sema_info = {};
+        result = daxa_dvc_create_binary_semaphore(this->device, &sema_info, r_cast<daxa_BinarySemaphore *>(&sema));
+        _DAXA_RETURN_IF_ERROR(result, result)
+        this->present_semaphores.push_back(std::move(sema));
     }
 
     if ((this->device->instance->info.flags & InstanceFlagBits::DEBUG_UTILS) != InstanceFlagBits::NONE && !this->info_name.empty())

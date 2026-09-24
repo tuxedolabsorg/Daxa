@@ -857,11 +857,14 @@ namespace daxa
     auto Swapchain::wait_for_present(u64 present_id, u64 timeout_nanoseconds) const -> bool
     {
         auto result = daxa_swp_wait_for_present(rc_cast<daxa_Swapchain>(this->object), present_id, timeout_nanoseconds);
-        if (result == DAXA_RESULT_SUCCESS || result == DAXA_RESULT_SUBOPTIMAL_KHR)
+        if (result == DAXA_RESULT_SUCCESS)
         {
             return true;
         }
+        // NOTE: SUBOPTIMAL is reported as not presented. It does say the present completed, but it also says the
+        // swapchain no longer matches the surface, and it is not worth guessing what the timing means then.
         if (result == DAXA_RESULT_TIMEOUT ||
+            result == DAXA_RESULT_SUBOPTIMAL_KHR ||
             result == DAXA_RESULT_ERROR_OUT_OF_DATE_KHR ||
             result == DAXA_RESULT_ERROR_SURFACE_LOST_KHR ||
             result == DAXA_RESULT_ERROR_FULL_SCREEN_EXCLUSIVE_MODE_LOST_EXT)

@@ -584,10 +584,10 @@ auto daxa_dvc_device_memory_report(daxa_Device self, daxa_DeviceMemoryReport * r
     for (u32 bi = 0; bi < self->gpu_sro_table.buffer_slots.next_index; ++bi)
     {
         u64 version = self->gpu_sro_table.buffer_slots.version_of_slot(bi);
-        if ((version & GpuResourcePool<u32>::VERSION_ZOMBIE_BIT) == 0) 
+        if ((version & GpuResourcePool<u32>::VERSION_ZOMBIE_BIT) == 0)
         {
-            daxa::BufferId id = { bi, version };
-            auto& slot = self->gpu_sro_table.buffer_slots.unsafe_get(id);
+            daxa::BufferId id = {bi, version};
+            auto & slot = self->gpu_sro_table.buffer_slots.unsafe_get(id);
             if (slot.vk_buffer == nullptr)
             {
                 continue;
@@ -614,7 +614,7 @@ auto daxa_dvc_device_memory_report(daxa_Device self, daxa_DeviceMemoryReport * r
             {
                 mem_blocks[slot.opt_memory_block] += 1;
             }
-    
+
             if (report->buffer_list != nullptr && out_idx < buffer_list_allocation_size)
             {
                 report->buffer_list[out_idx] = {
@@ -629,10 +629,10 @@ auto daxa_dvc_device_memory_report(daxa_Device self, daxa_DeviceMemoryReport * r
     for (u32 ii = 0; ii < self->gpu_sro_table.image_slots.next_index; ++ii)
     {
         u64 version = self->gpu_sro_table.image_slots.version_of_slot(ii);
-        if ((version & GpuResourcePool<u32>::VERSION_ZOMBIE_BIT) == 0) 
+        if ((version & GpuResourcePool<u32>::VERSION_ZOMBIE_BIT) == 0)
         {
-            daxa::ImageId id = { ii, version };
-            auto& slot = self->gpu_sro_table.image_slots.unsafe_get(id);
+            daxa::ImageId id = {ii, version};
+            auto & slot = self->gpu_sro_table.image_slots.unsafe_get(id);
             if (slot.vk_image == nullptr)
             {
                 continue;
@@ -670,14 +670,14 @@ auto daxa_dvc_device_memory_report(daxa_Device self, daxa_DeviceMemoryReport * r
             }
         }
     }
-    
+
     for (u32 ti = 0; ti < self->gpu_sro_table.tlas_slots.next_index; ++ti)
     {
         u64 version = self->gpu_sro_table.tlas_slots.version_of_slot(ti);
-        if ((version & GpuResourcePool<u32>::VERSION_ZOMBIE_BIT) == 0) 
+        if ((version & GpuResourcePool<u32>::VERSION_ZOMBIE_BIT) == 0)
         {
-            daxa::TlasId id = { ti, version };
-            auto& slot = self->gpu_sro_table.tlas_slots.unsafe_get(id);
+            daxa::TlasId id = {ti, version};
+            auto & slot = self->gpu_sro_table.tlas_slots.unsafe_get(id);
             if (slot.vk_acceleration_structure == nullptr)
             {
                 continue;
@@ -685,24 +685,23 @@ auto daxa_dvc_device_memory_report(daxa_Device self, daxa_DeviceMemoryReport * r
 
             u32 out_idx = report->tlas_count++;
             report->total_aliased_tlas_device_memory_use += slot.info.size;
-    
+
             if (report->tlas_list != nullptr && out_idx < tlas_list_allocation_size)
             {
                 report->tlas_list[out_idx] = {
                     std::bit_cast<daxa_TlasId>(id),
-                    slot.info.size
-                };
+                    slot.info.size};
             }
         }
     }
-    
+
     for (u32 bli = 0; bli < self->gpu_sro_table.blas_slots.next_index; ++bli)
     {
         u64 version = self->gpu_sro_table.blas_slots.version_of_slot(bli);
-        if ((version & GpuResourcePool<u32>::VERSION_ZOMBIE_BIT) == 0) 
+        if ((version & GpuResourcePool<u32>::VERSION_ZOMBIE_BIT) == 0)
         {
-            daxa::BlasId id = { bli, version };
-            auto& slot = self->gpu_sro_table.blas_slots.unsafe_get(id);
+            daxa::BlasId id = {bli, version};
+            auto & slot = self->gpu_sro_table.blas_slots.unsafe_get(id);
             if (slot.vk_acceleration_structure == nullptr)
             {
                 continue;
@@ -710,12 +709,12 @@ auto daxa_dvc_device_memory_report(daxa_Device self, daxa_DeviceMemoryReport * r
 
             u32 out_idx = report->blas_count++;
             report->total_aliased_blas_device_memory_use += slot.info.size;
-    
+
             if (report->blas_list != nullptr && out_idx < blas_list_allocation_size)
             {
                 report->blas_list[out_idx] = {
                     std::bit_cast<daxa_BlasId>(id),
-                    slot.info.size
+                    slot.info.size,
                 };
             }
         }
@@ -723,7 +722,7 @@ auto daxa_dvc_device_memory_report(daxa_Device self, daxa_DeviceMemoryReport * r
 
     for (auto v : mem_blocks)
     {
-        daxa_MemoryBlock const& block = v.first;
+        daxa_MemoryBlock const & block = v.first;
         u32 out_idx = report->memory_block_count++;
 
         report->total_memory_block_device_memory_use += block->alloc_info.size;
@@ -737,14 +736,14 @@ auto daxa_dvc_device_memory_report(daxa_Device self, daxa_DeviceMemoryReport * r
             };
         }
     }
-    
-    report->total_device_memory_use = 
+
+    report->total_device_memory_use =
         report->total_buffer_device_memory_use +
         report->total_image_device_memory_use +
         report->total_memory_block_device_memory_use;
 
     return DAXA_RESULT_SUCCESS;
-} 
+}
 
 auto daxa_default_device_score(daxa_DeviceProperties const * c_properties) -> i32
 {
@@ -984,17 +983,17 @@ auto daxa_dvc_create_image_view(daxa_Device self, daxa_ImageViewInfo const * inf
 
     if (info->slice.layer_count > 1)
     {
-        bool const array_type = info->type == 
-            VK_IMAGE_VIEW_TYPE_1D_ARRAY || 
-            info->type == VK_IMAGE_VIEW_TYPE_2D_ARRAY || 
-            info->type == VK_IMAGE_VIEW_TYPE_CUBE || 
+        bool const array_type =
+            info->type == VK_IMAGE_VIEW_TYPE_1D_ARRAY ||
+            info->type == VK_IMAGE_VIEW_TYPE_2D_ARRAY ||
+            info->type == VK_IMAGE_VIEW_TYPE_CUBE ||
             info->type == VK_IMAGE_VIEW_TYPE_CUBE_ARRAY;
         if (!array_type)
         {
             result = DAXA_RESULT_INVALID_IMAGE_VIEW_INFO;
         }
     }
-    _DAXA_RETURN_IF_ERROR(result,result);
+    _DAXA_RETURN_IF_ERROR(result, result);
 
     /// --- End Validation ---
 
@@ -1234,13 +1233,13 @@ auto daxa_dvc_get_vk_physical_device(daxa_Device self) -> VkPhysicalDevice
     return self->vk_physical_device;
 }
 
-auto daxa_dvc_get_vk_queue(daxa_Device self, daxa_Queue queue, VkQueue* vk_queue, uint32_t* vk_queue_family_index) -> daxa_Result
+auto daxa_dvc_get_vk_queue(daxa_Device self, daxa_Queue queue, VkQueue * vk_queue, uint32_t * vk_queue_family_index) -> daxa_Result
 {
     if (!self->valid_queue(queue))
     {
         _DAXA_RETURN_IF_ERROR(DAXA_RESULT_ERROR_INVALID_QUEUE, DAXA_RESULT_ERROR_INVALID_QUEUE);
     }
-    auto const& daxa_queue = self->get_queue(queue);
+    auto const & daxa_queue = self->get_queue(queue);
     if (vk_queue)
         *vk_queue = daxa_queue.vk_queue;
     if (vk_queue_family_index)
@@ -1430,7 +1429,7 @@ auto daxa_dvc_present(daxa_Device self, daxa_PresentInfo const * info) -> daxa_R
     }
 
     // Tag every present with an increasing id so present timing can be observed with vkWaitForPresentKHR.
-    u64 const present_id = info->swapchain->present_id + 1;
+    u64 const present_id = info->swapchain->present_id_counter + 1;
     VkPresentIdKHR const present_id_info{
         .sType = VK_STRUCTURE_TYPE_PRESENT_ID_KHR,
         .pNext = nullptr,
@@ -1453,7 +1452,13 @@ auto daxa_dvc_present(daxa_Device self, daxa_PresentInfo const * info) -> daxa_R
     auto result = static_cast<daxa_Result>(vkQueuePresentKHR(self->get_queue(info->queue).vk_queue, &present_info));
     if (use_present_id)
     {
-        info->swapchain->present_id = present_id;
+        // The driver was handed this id either way, so it must never be used again: a later wait would then be
+        // satisfied by this present. Only a present that reached the presentation engine can be waited for.
+        info->swapchain->present_id_counter = present_id;
+        if (result == DAXA_RESULT_SUCCESS || result == DAXA_RESULT_SUBOPTIMAL_KHR)
+        {
+            info->swapchain->valid_present_id = present_id;
+        }
     }
     return std::bit_cast<daxa_Result>(result);
 }
