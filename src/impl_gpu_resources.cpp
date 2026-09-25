@@ -1,23 +1,41 @@
+#include "impl_core.hpp"
+
 #include "impl_gpu_resources.hpp"
 
 #include <daxa/daxa.inl>
 #include <format>
+#include <daxa/profiling.hpp>
 
 namespace daxa
 {
-    auto GPUResourceId::is_empty() const -> bool
-    {
-        return version == 0;
-    }
-
-    auto ImageId::default_view() const -> ImageViewId
-    {
-        return ImageViewId{{.index = index, .version = version}};
-    }
-
-    auto to_string(GPUResourceId const & id) -> std::string
+    auto to_string(GPUResourceId id) -> std::string
     {
         return std::format("index: {}, version: {}", static_cast<u32>(id.index), static_cast<u32>(id.version));
+    }
+
+    auto to_string(ImageId id) -> std::string
+    {
+        return to_string(std::bit_cast<GPUResourceId>(id));
+    }
+
+    auto to_string(ImageViewId id) -> std::string
+    {
+        return to_string(std::bit_cast<GPUResourceId>(id));
+    }
+
+    auto to_string(SamplerId id) -> std::string
+    {
+        return to_string(std::bit_cast<GPUResourceId>(id));
+    }
+
+    auto to_string(BlasId id) -> std::string
+    {
+        return to_string(std::bit_cast<GPUResourceId>(id));
+    }
+
+    auto to_string(TlasId id) -> std::string
+    {
+        return to_string(std::bit_cast<GPUResourceId>(id));
     }
 
     auto to_string(ImageViewType const & type) -> std::string_view
@@ -31,7 +49,7 @@ namespace daxa
         case ImageViewType::REGULAR_1D_ARRAY: return "REGULAR_1D_ARRAY";
         case ImageViewType::REGULAR_2D_ARRAY: return "REGULAR_2D_ARRAY";
         case ImageViewType::CUBE_ARRAY: return "CUBE_ARRAY";
-        default: return "NONE";
+        default: return "UNKNOWN";
         }
     }
 
@@ -39,6 +57,8 @@ namespace daxa
                                             VkDevice device, VkBuffer device_address_buffer,
                                             PFN_vkSetDebugUtilsObjectNameEXT vkSetDebugUtilsObjectNameEXT) -> daxa_Result
     {
+        DAXA_PROFILE_SCOPE(__FUNCTION__);
+
         daxa_Result result = DAXA_RESULT_SUCCESS;
         defer
         {
@@ -57,13 +77,34 @@ namespace daxa
 
         bool const ray_tracing_enabled = max_acceleration_structures != (~0u);
 
+        auto round_up_to_pages = [](auto size, auto block_size){
+            return (size + block_size - 1) / block_size * block_size;
+        };
+
+        u32 max_tlas = 1024; // TODO(Raytracing): Should we have a smarter limit?
+        u32 max_blas = max_acceleration_structures;
+        max_tlas = round_up_to_pages(max_tlas, static_cast<u32>(GpuResourcePool<>::PAGE_SIZE));
+        max_blas = round_up_to_pages(max_blas, static_cast<u32>(GpuResourcePool<>::PAGE_SIZE));
+        max_buffers = round_up_to_pages(max_buffers, static_cast<u32>(GpuResourcePool<>::PAGE_SIZE));
+        max_images = round_up_to_pages(max_images, static_cast<u32>(GpuResourcePool<>::PAGE_SIZE));
+        max_samplers = round_up_to_pages(max_samplers, static_cast<u32>(GpuResourcePool<>::PAGE_SIZE));
+
         buffer_slots.max_resources = max_buffers;
         image_slots.max_resources = max_images;
         sampler_slots.max_resources = max_samplers;
         if (ray_tracing_enabled)
         {
-            tlas_slots.max_resources = max_acceleration_structures;
-            blas_slots.max_resources = 1'000'000; // TODO(Raytracing): Should we have a smarter limit?
+            tlas_slots.max_resources = max_tlas;
+            blas_slots.max_resources = max_blas;
+        }
+
+        buffer_slots.hot_data = decltype(buffer_slots.hot_data)(buffer_slots.max_resources);
+        image_slots.hot_data = decltype(image_slots.hot_data)(image_slots.max_resources);
+        sampler_slots.hot_data = decltype(sampler_slots.hot_data)(sampler_slots.max_resources);
+        if (ray_tracing_enabled)
+        {
+            tlas_slots.hot_data = decltype(tlas_slots.hot_data)(tlas_slots.max_resources);
+            blas_slots.hot_data = decltype(blas_slots.hot_data)(blas_slots.max_resources);
         }
 
         VkDescriptorPoolSize const buffer_descriptor_pool_size{
@@ -332,31 +373,42 @@ namespace daxa
 
     void GPUShaderResourceTable::cleanup(VkDevice device)
     {
-        [[maybe_unused]] auto print_remaining = [&](std::string prefix, auto & pages)
+        [[maybe_unused]] auto print_remaining = [&](std::string prefix, auto & sro)
         {
             std::string ret{prefix + "\nthis can happen due to not waiting for the gpu to finish executing, as daxa defers destruction. List of survivors:\n"};
-            for (auto & page : pages)
+            for (u32 page_i = 0; page_i < sro.valid_page_count.load(); ++page_i)
             {
+                auto & page = sro.paged_data[page_i];
                 if (page)
                 {
-                    for (auto & slot : *page)
+                    for (u32 i = 0; i < GpuResourcePool<>::PAGE_SIZE; ++i)
                     {
-                        bool handle_invalid = {};
-                        if constexpr (std::is_same_v<decltype(slot.first), ImplBufferSlot>)
+                        auto & slot = (*page.get())[i];
+                        u32 const resource_i = page_i * GpuResourcePool<>::PAGE_SIZE + i;
+                        bool non_zero_refcount = {};
+                        if constexpr (std::is_same_v<std::remove_cvref_t<decltype(slot)>, ImplBufferSlot>)
                         {
-                            handle_invalid = slot.first.vk_buffer == VK_NULL_HANDLE;
+                            non_zero_refcount = GpuResourcePool<>::get_refcnt(sro.version_refcnt_of_slot(resource_i));
                         }
-                        if constexpr (std::is_same_v<decltype(slot.first), ImplImageSlot>)
+                        if constexpr (std::is_same_v<std::remove_cvref_t<decltype(slot)>, ImplBlasSlot>)
                         {
-                            handle_invalid = slot.first.vk_image == VK_NULL_HANDLE;
+                            non_zero_refcount = GpuResourcePool<>::get_refcnt(sro.version_refcnt_of_slot(resource_i));
                         }
-                        if constexpr (std::is_same_v<decltype(slot.first), ImplSamplerSlot>)
+                        if constexpr (std::is_same_v<std::remove_cvref_t<decltype(slot)>, ImplTlasSlot>)
                         {
-                            handle_invalid = slot.first.vk_sampler == VK_NULL_HANDLE;
+                            non_zero_refcount = GpuResourcePool<>::get_refcnt(sro.version_refcnt_of_slot(resource_i));
                         }
-                        if (!handle_invalid)
+                        if constexpr (std::is_same_v<std::remove_cvref_t<decltype(slot)>, ImplImageSlot>)
                         {
-                            ret += std::format("debug name : \"{}\"", r_cast<SmallString const *>(&slot.first.info.name)->view());
+                            non_zero_refcount = GpuResourcePool<>::get_refcnt(sro.version_refcnt_of_slot(resource_i));
+                        }
+                        if constexpr (std::is_same_v<std::remove_cvref_t<decltype(slot)>, ImplSamplerSlot>)
+                        {
+                            non_zero_refcount = GpuResourcePool<>::get_refcnt(sro.version_refcnt_of_slot(resource_i));
+                        }
+                        if (non_zero_refcount)
+                        {
+                            ret += std::format("debug name : \"{}\"", r_cast<SmallString const *>(&slot.info.name)->view());
                             ret += "\n";
                         }
                     }
@@ -364,9 +416,9 @@ namespace daxa
             }
             return ret;
         };
-        DAXA_DBG_ASSERT_TRUE_MS(buffer_slots.free_index_stack.size() == buffer_slots.next_index, print_remaining("Detected leaked buffers; not all buffers have been destroyed before destroying the device;", buffer_slots.pages));
-        DAXA_DBG_ASSERT_TRUE_MS(image_slots.free_index_stack.size() == image_slots.next_index, print_remaining("Detected leaked images; not all images have been destroyed before destroying the device;", image_slots.pages));
-        DAXA_DBG_ASSERT_TRUE_MS(sampler_slots.free_index_stack.size() == sampler_slots.next_index, print_remaining("Detected leaked samplers; not all samplers have been destroyed before destroying the device;", sampler_slots.pages));
+        DAXA_DBG_ASSERT_TRUE_M(buffer_slots.free_index_stack.size() == buffer_slots.next_index, print_remaining("Detected leaked buffers; not all buffers have been destroyed before destroying the device;", buffer_slots));
+        DAXA_DBG_ASSERT_TRUE_M(image_slots.free_index_stack.size() == image_slots.next_index, print_remaining("Detected leaked images; not all images have been destroyed before destroying the device;", image_slots));
+        DAXA_DBG_ASSERT_TRUE_M(sampler_slots.free_index_stack.size() == sampler_slots.next_index, print_remaining("Detected leaked samplers; not all samplers have been destroyed before destroying the device;", sampler_slots));
         for (usize i = 0; i < DAXA_PIPELINE_LAYOUT_COUNT; ++i)
         {
             vkDestroyPipelineLayout(device, pipeline_layouts.at(i), nullptr);
@@ -456,7 +508,7 @@ namespace daxa
         VkDescriptorImageInfo const vk_descriptor_image_info_sampled{
             .sampler = VK_NULL_HANDLE,
             .imageView = vk_image_view,
-            .imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
+            .imageLayout = VK_IMAGE_LAYOUT_GENERAL,
         };
 
         VkWriteDescriptorSet const vk_write_descriptor_set_sampled{

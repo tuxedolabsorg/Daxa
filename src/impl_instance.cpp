@@ -1,7 +1,10 @@
 #include "impl_core.hpp"
+
 #include "impl_instance.hpp"
 #include "impl_device.hpp"
 #include "impl_features.hpp"
+
+#include <daxa/profiling.hpp>
 
 #include <algorithm>
 #include <vector>
@@ -34,12 +37,19 @@ auto daxa_create_instance(daxa_InstanceInfo const * info, daxa_Instance * out_in
     // Check existence of extensions:
     std::vector<VkExtensionProperties> instance_extensions = {};
     uint32_t instance_extension_count = {};
-    daxa_Result result = static_cast<daxa_Result>(vkEnumerateInstanceExtensionProperties(nullptr, &instance_extension_count, nullptr));
-    _DAXA_RETURN_IF_ERROR(result, result);
+    daxa_Result result;
+    {
+        DAXA_PROFILE_SCOPE("vkEnumerateInstanceExtensionProperties");
+        result = static_cast<daxa_Result>(vkEnumerateInstanceExtensionProperties(nullptr, &instance_extension_count, nullptr));
+        _DAXA_RETURN_IF_ERROR(result, result);
+    }
 
     instance_extensions.resize(instance_extension_count);
-    result = static_cast<daxa_Result>(vkEnumerateInstanceExtensionProperties(nullptr, &instance_extension_count, instance_extensions.data()));
-    _DAXA_RETURN_IF_ERROR(result, result);
+    {
+        DAXA_PROFILE_SCOPE("vkEnumerateInstanceExtensionProperties");
+        result = static_cast<daxa_Result>(vkEnumerateInstanceExtensionProperties(nullptr, &instance_extension_count, instance_extensions.data()));
+        _DAXA_RETURN_IF_ERROR(result, result);
+    }
 
     std::vector<char const *> enabled_extensions{};
     enabled_extensions.reserve(implicit_extensions.size() + explicit_extensions.size());
@@ -97,7 +107,10 @@ auto daxa_create_instance(daxa_InstanceInfo const * info, daxa_Instance * out_in
         .enabledExtensionCount = static_cast<uint32_t>(enabled_extensions.size()),
         .ppEnabledExtensionNames = enabled_extensions.data(),
     };
-    result = static_cast<daxa_Result>(vkCreateInstance(&instance_ci, nullptr, &ret.vk_instance));
+    {
+        DAXA_PROFILE_SCOPE("vkCreateInstance");
+        result = static_cast<daxa_Result>(vkCreateInstance(&instance_ci, nullptr, &ret.vk_instance));
+    }
     _DAXA_RETURN_IF_ERROR(result, result);
 
     volkLoadInstance(ret.vk_instance);
@@ -113,6 +126,7 @@ auto daxa_create_instance(daxa_InstanceInfo const * info, daxa_Instance * out_in
 
 auto daxa_ImplInstance::initialize_physical_devices() -> daxa_Result
 {
+    DAXA_PROFILE_SCOPE(__FUNCTION__);
     u32 device_count = {};
     daxa_Result result = static_cast<daxa_Result>(vkEnumeratePhysicalDevices(this->vk_instance, &device_count, nullptr));
     _DAXA_RETURN_IF_ERROR(result, result);
@@ -126,6 +140,7 @@ auto daxa_ImplInstance::initialize_physical_devices() -> daxa_Result
 
     for (u32 i = 0; i < device_count; ++i)
     {
+        DAXA_PROFILE_SCOPE("query physical device");
         auto & internals = this->device_internals[i];
         auto & properties = this->device_properties[i];
         internals.vk_handle = vk_physical_devices[i];
@@ -143,86 +158,6 @@ auto daxa_ImplInstance::initialize_physical_devices() -> daxa_Result
     }
 
     return DAXA_RESULT_SUCCESS;
-}
-
-auto daxa_instance_create_device(daxa_Instance self, daxa_DeviceInfo const * legacy_info, daxa_Device * out_device) -> daxa_Result
-{
-    daxa_DeviceInfo2 info = {};
-    if (legacy_info->flags & DAXA_DEVICE_FLAG_BUFFER_DEVICE_ADDRESS_CAPTURE_REPLAY_BIT)
-    {
-        info.explicit_features = DAXA_EXPLICIT_FEATURE_FLAG_BUFFER_DEVICE_ADDRESS_CAPTURE_REPLAY;
-    }
-    if (legacy_info->flags & DAXA_DEVICE_FLAG_VK_MEMORY_MODEL)
-    {
-        info.explicit_features = DAXA_EXPLICIT_FEATURE_FLAG_VK_MEMORY_MODEL;
-    }
-    if (legacy_info->flags & DAXA_DEVICE_FLAG_ROBUST_BUFFER_ACCESS)
-    {
-        info.explicit_features = DAXA_EXPLICIT_FEATURE_FLAG_ROBUSTNESS_2;
-    }
-    info.max_allowed_buffers = legacy_info->max_allowed_buffers;
-    info.max_allowed_images = legacy_info->max_allowed_images;
-    info.max_allowed_samplers = legacy_info->max_allowed_samplers;
-    info.max_allowed_acceleration_structures = legacy_info->max_allowed_acceleration_structures;
-    info.name = legacy_info->name;
-
-    info.physical_device_index = ~0u;
-    struct RatedDevice
-    {
-        u32 physical_device_index = {};
-        i32 rating = {};
-    };
-    std::vector<RatedDevice> rated_devices = {};
-    for (u32 i = 0; i < self->device_properties.size(); ++i)
-    {
-        auto & props = self->device_properties[i];
-
-        bool no_support_problems = props.missing_required_feature == DAXA_MISSING_REQUIRED_VK_FEATURE_NONE;
-
-        bool matches_info =
-            info.max_allowed_buffers <= props.limits.max_descriptor_set_storage_buffers &&
-            info.max_allowed_images <= props.limits.max_descriptor_set_storage_images &&
-            info.max_allowed_images <= props.limits.max_descriptor_set_sampled_images &&
-            info.max_allowed_images <= props.limits.max_descriptor_set_storage_images;
-        if (props.acceleration_structure_properties.has_value)
-        {
-            matches_info = matches_info &&
-                           info.max_allowed_acceleration_structures <=
-                               props.acceleration_structure_properties.value.max_descriptor_set_update_after_bind_acceleration_structures;
-        }
-
-        bool matches_explicit_features = (info.explicit_features & props.explicit_features) == info.explicit_features;
-
-        if (!(no_support_problems && matches_info && matches_explicit_features))
-        {
-            continue;
-        }
-
-        auto rating = legacy_info->selector(&props);
-
-        if (rating <= 0)
-        {
-            continue;
-        }
-
-        rated_devices.push_back({
-            .physical_device_index = i,
-            .rating = rating,
-        });
-    }
-
-    if (rated_devices.empty())
-    {
-        _DAXA_RETURN_IF_ERROR(DAXA_RESULT_NO_SUITABLE_DEVICE_FOUND, DAXA_RESULT_NO_SUITABLE_DEVICE_FOUND)
-    }
-
-    std::sort(rated_devices.begin(), rated_devices.end(), [](auto a, auto b)
-              { return a.rating > b.rating; });
-
-    u32 chosen_device = rated_devices[0].physical_device_index;
-    info.physical_device_index = chosen_device;
-
-    return daxa_instance_create_device_2(self, &info, out_device);
 }
 
 void daxa_instance_list_devices_properties(daxa_Instance self, daxa_DeviceProperties const ** properties, daxa_u32 * property_count)
@@ -336,7 +271,6 @@ auto daxa_instance_get_vk_instance(daxa_Instance self) -> VkInstance
 
 void daxa_ImplInstance::zero_ref_callback(ImplHandle const * handle)
 {
-    _DAXA_TEST_PRINT("daxa_ImplInstance::zero_ref_callback\n");
     daxa_Instance self = rc_cast<daxa_Instance>(handle);
     vkDestroyInstance(self->vk_instance, nullptr);
     delete self;

@@ -32,8 +32,7 @@
 ///
 /// To limit the frames in flight we employ a timeline semaphore that must be signaled in a submission that uses or after one that uses the swapchain image.
 ///
-/// WARNING: The swapchain only works on the main queue! It is directly tied to it.
-///
+
 /// TODO: investigate if wsi is improved enough to use zombies for swapchain.
 struct daxa_ImplSwapchain final : ImplHandle
 {
@@ -45,12 +44,13 @@ struct daxa_ImplSwapchain final : ImplHandle
     VkSurfaceFormatKHR vk_surface_format = {};
     VkExtent2D surface_extent = {};
     std::vector<PresentMode> supported_present_modes = {};
+
     // Swapchain holds strong references to these objects as it owns them.
     std::vector<ImageId> images = {};
     std::vector<BinarySemaphore> acquire_semaphores = {};
     std::vector<BinarySemaphore> present_semaphores = {};
     // Monotonically increasing frame index.
-    usize cpu_frame_timeline = {};
+    i64 cpu_frame_timeline = 0ll;
     // cpu_frame_timeline % frames in flight. used to index the acquire semaphores.
     usize acquire_semaphore_index = {};
     // Gpu timeline semaphore used to track how far behind the gpu is.
@@ -59,10 +59,6 @@ struct daxa_ImplSwapchain final : ImplHandle
     // This is the swapchain image index that acquire returns. THis is not necessarily linear.
     // This index must be used for present semaphores as they are paired to the images.
     u32 current_image_index = {};
-    // Id of the most recent present that actually reached the presentation engine, 0 when there was none.
-    // Only this one can be waited for, a failed present never completes.
-    u64 valid_present_id = {};
-    u64 present_id_counter = {};
 
     void partial_cleanup();
     void full_cleanup();

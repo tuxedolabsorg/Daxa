@@ -60,16 +60,8 @@ namespace daxa
             physical_device_ray_tracing_invocation_reorder_nv,
             physical_device_shader_atomic_float_ext,
             physical_device_shader_clock_khr,
+            physical_device_host_image_copy_ext,
             physical_device_line_rasterization_khr,
-            // Used by DLSS
-            physical_device_push_descriptor_khr,
-            physical_device_binary_import_nvx,
-            physical_device_image_view_handle_nvx,
-            // Used for frame pacing/latency profiling
-            physical_device_present_id_khr,
-            physical_device_present_wait_khr,
-            physical_device_calibrated_timestamps_khr,
-            physical_device_calibrated_timestamps_ext,
             COUNT
         };
         constexpr static std::array<char const *, COUNT> extension_names = {
@@ -90,16 +82,8 @@ namespace daxa
             VK_NV_RAY_TRACING_INVOCATION_REORDER_EXTENSION_NAME,
             VK_EXT_SHADER_ATOMIC_FLOAT_EXTENSION_NAME,
             VK_KHR_SHADER_CLOCK_EXTENSION_NAME,
+            VK_EXT_HOST_IMAGE_COPY_EXTENSION_NAME,
             VK_KHR_LINE_RASTERIZATION_EXTENSION_NAME,
-            // Used by DLSS
-            VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME,
-            VK_NVX_BINARY_IMPORT_EXTENSION_NAME,
-            VK_NVX_IMAGE_VIEW_HANDLE_EXTENSION_NAME,
-            // Used for frame pacing/latency profiling
-            VK_KHR_PRESENT_ID_EXTENSION_NAME,
-            VK_KHR_PRESENT_WAIT_EXTENSION_NAME,
-            VK_KHR_CALIBRATED_TIMESTAMPS_EXTENSION_NAME,
-            VK_EXT_CALIBRATED_TIMESTAMPS_EXTENSION_NAME,
         };
         char const * extension_name_list[COUNT] = {};
         u32 extension_name_list_size = {};
@@ -136,16 +120,13 @@ namespace daxa
         VkPhysicalDeviceRayTracingInvocationReorderFeaturesNV physical_device_ray_tracing_invocation_reorder_features_nv = {};
         VkPhysicalDeviceShaderAtomicFloatFeaturesEXT physical_device_shader_atomic_float_features_ext = {};
         VkPhysicalDeviceShaderClockFeaturesKHR physical_device_shader_clock_features_khr = {};
+        VkPhysicalDeviceHostImageCopyFeaturesEXT physical_device_host_image_copy_features_ext = {};
         VkPhysicalDeviceLineRasterizationFeaturesKHR physical_device_line_rasterization_features_khr = {};
         VkPhysicalDevicePipelineLibraryGroupHandlesFeaturesEXT physical_device_pipeline_library_group_handles_ext = {};
         VkPhysicalDeviceShaderDemoteToHelperInvocationFeatures physical_device_shader_demote_to_helper_invocation_features = {};
-        VkPhysicalDevicePresentIdFeaturesKHR physical_device_present_id_features_khr = {};
-        VkPhysicalDevicePresentWaitFeaturesKHR physical_device_present_wait_features_khr = {};
         VkPhysicalDeviceFeatures2 physical_device_features_2 = {};
-        // NOTE: Must be VkBool32, the feature tables read every entry as a VkBool32.
-        VkBool32 conservative_rasterization = {};
-        VkBool32 swapchain = {};
-        VkBool32 calibrated_timestamps = {};
+        bool conservative_rasterization = {};
+        bool swapchain = {};
 
         void initialize(PhysicalDeviceExtensionsStruct const & extensions);
     };
@@ -162,6 +143,7 @@ namespace daxa
         VkPhysicalDeviceAccelerationStructurePropertiesKHR physical_device_acceleration_structure_properties_khr = {};
         VkPhysicalDeviceRayTracingInvocationReorderPropertiesNV physical_device_ray_tracing_invocation_reorder_properties_nv = {};
         VkPhysicalDeviceMeshShaderPropertiesEXT physical_device_mesh_shader_properties_ext = {};
+        VkPhysicalDeviceHostImageCopyPropertiesEXT physical_device_host_image_copy_properties_ext = {};
         VkPhysicalDeviceSubgroupSizeControlProperties physical_device_subgroup_size_control_properties = {};
         VkPhysicalDeviceProperties2 physical_device_properties_2 = {};
 

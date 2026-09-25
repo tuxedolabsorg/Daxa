@@ -5,34 +5,50 @@
 #include <daxa/c/sync.h>
 #include <vulkan/vulkan_core.h>
 
-DAXA_EXPORT int32_t
-daxa_default_format_selector(VkFormat format);
-
-/// @brief  A platform-dependent window resource.
-///         On Windows, this is an `HWND`
-///         On Linux X11, this is a `Window`
-///         On Linux Wayland, this is a `wl_surface *`
-typedef void * daxa_NativeWindowHandle;
-
-typedef enum
+typedef struct 
 {
-    DAXA_NATIVE_WINDOW_PLATFORM_UNKNOWN,
-    DAXA_NATIVE_WINDOW_PLATFORM_WIN32_API,
-    DAXA_NATIVE_WINDOW_PLATFORM_XLIB_API,
-    DAXA_NATIVE_WINDOW_PLATFORM_WAYLAND_API,
-    DAXA_NATIVE_WINDOW_PLATFORM_MAX_ENUM = 0x7fffffff,
-} daxa_NativeWindowPlatform;
+    void * hwnd;
+} daxa_NativeWindowInfoWin32;
 
 typedef struct
 {
-    daxa_NativeWindowHandle native_window;
-    daxa_NativeWindowPlatform native_window_platform;
-    int32_t (*surface_format_selector)(VkFormat);
+    void * window;
+} daxa_NativeWindowInfoXlib;
+
+typedef struct
+{
+    void* display;
+    void* surface;
+    daxa_u32 width;
+    daxa_u32 height;
+} daxa_NativeWindowInfoWayland;
+
+typedef union
+{
+    daxa_NativeWindowInfoWin32 win32;
+    daxa_NativeWindowInfoXlib xlib;
+    daxa_NativeWindowInfoWayland wayland;
+} daxa_NativeWindowInfoUnion;
+
+typedef enum
+{
+    DAXA_NATIVE_WINDOW_PLATFORM_INDEX_WIN32 = 0,
+    DAXA_NATIVE_WINDOW_PLATFORM_INDEX_XLIB = 1,
+    DAXA_NATIVE_WINDOW_PLATFORM_INDEX_WAYLAND = 2,
+    DAXA_NATIVE_WINDOW_PLATFORM_INDEX_MAX_ENUM = 0x7fffffff,
+} daxa_NativeWindowPlatformIndex;
+
+typedef daxa_Variant(daxa_NativeWindowInfoUnion) daxa_NativeWindowInfo;
+
+typedef struct
+{
+    daxa_NativeWindowInfo native_window_info;
+    VkSurfaceFormatKHR surface_format;
     VkPresentModeKHR present_mode;
     VkSurfaceTransformFlagBitsKHR present_operation;
     daxa_ImageUsageFlags image_usage;
     size_t max_allowed_frames_in_flight;
-    daxa_QueueFamily queue_family;
+    daxa_QueueType queue_type;
     daxa_SmallString name;
 } daxa_SwapchainInfo;
 
@@ -50,7 +66,7 @@ daxa_swp_set_present_mode(daxa_Swapchain swapchain, VkPresentModeKHR present_mod
 DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
 daxa_swp_wait_for_next_frame(daxa_Swapchain swapchain);
 DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
-daxa_swp_acquire_next_image(daxa_Swapchain swapchain, daxa_ImageId * out_image_id);
+daxa_swp_acquire_next_image(daxa_Swapchain swapchain, daxa_ImageId * out_image);
 DAXA_EXPORT daxa_BinarySemaphore *
 daxa_swp_current_acquire_semaphore(daxa_Swapchain swapchain);
 DAXA_EXPORT daxa_BinarySemaphore *
@@ -59,10 +75,6 @@ DAXA_EXPORT uint64_t
 daxa_swp_current_cpu_timeline_value(daxa_Swapchain swapchain);
 DAXA_EXPORT daxa_TimelineSemaphore *
 daxa_swp_gpu_timeline_semaphore(daxa_Swapchain swapchain);
-DAXA_EXPORT uint64_t
-daxa_swp_current_present_id(daxa_Swapchain swapchain);
-DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
-daxa_swp_wait_for_present(daxa_Swapchain swapchain, uint64_t present_id, uint64_t timeout);
 
 DAXA_EXPORT daxa_SwapchainInfo const *
 daxa_swp_info(daxa_Swapchain swapchain);

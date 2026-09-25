@@ -8,63 +8,110 @@
 #include <mutex>
 #include <shared_mutex>
 
+// TODO:    Refactor slots into hot and cold data
+//          hot data should be stored in pre-allocated flat array
+//          cold data should be allocated on demand into growing address stable container (similar to DynamicArenaVector8k)
+
+// TODO:    Remove buffer descriptors.
+// TODO:    Remove tlas descriptors.
+
 namespace daxa
 {
+    /// NOTE: HotData should be small and contain data that is accessed very frequently.
+    ///       Only add things to HotData when it is an actual performance benefit that is proven bu profiling.
+
     struct ImplBufferSlot
     {
         daxa_BufferInfo info = {};
-        VkBuffer vk_buffer = {};
         VmaAllocation vma_allocation = {};
         daxa_MemoryBlock opt_memory_block = {};
-        VkDeviceAddress device_address = {};
-        void * host_address = {};
+
+        static constexpr inline bool HAS_HOT_DATA = true;
+        struct HotData
+        {
+            VkBuffer vk_buffer = {};
+            VkDeviceAddress device_address = {};
+            void * host_address = {};
+        };
     };
 
     static inline constexpr i32 NOT_OWNED_BY_SWAPCHAIN = -1;
+
+    struct ImageAndImageViewSlotHotData
+    {
+    };
 
     struct ImplImageViewSlot
     {
         daxa_ImageViewInfo info = {};
         VkImageView vk_image_view = {};
+
+        static constexpr inline bool HAS_HOT_DATA = false;
+        using HotData = ImageAndImageViewSlotHotData;
     };
 
     struct ImplImageSlot
     {
         ImplImageViewSlot view_slot = {};
         daxa_ImageInfo info = {};
-        VkImage vk_image = {};
         VmaAllocation vma_allocation = {};
         daxa_MemoryBlock opt_memory_block = {};
         i32 swapchain_image_index = NOT_OWNED_BY_SWAPCHAIN;
         VkImageAspectFlags aspect_flags = {}; // Inferred from format.
+        VkImage vk_image = {};
+
+        static constexpr inline bool HAS_HOT_DATA = false;
+        using HotData = ImageAndImageViewSlotHotData;
     };
 
     struct ImplSamplerSlot
     {
         daxa_SamplerInfo info = {};
         VkSampler vk_sampler = {};
+
+        static constexpr inline bool HAS_HOT_DATA = false;
+        struct HotData
+        {
+        };
     };
 
     struct ImplTlasSlot
     {
         daxa_TlasInfo info = {};
-        VkAccelerationStructureKHR vk_acceleration_structure = {};
         VkBuffer vk_buffer = {};
         BufferId buffer_id = {};
         u64 offset = {};
-        VkDeviceAddress device_address = {};
         bool owns_buffer = {};
+
+        static constexpr inline bool HAS_HOT_DATA = true;
+        struct HotData
+        {
+            VkAccelerationStructureKHR vk_acceleration_structure = {};
+            VkDeviceAddress device_address = {};
+        };
     };
 
     struct ImplBlasSlot
     {
         daxa_BlasInfo info = {};
-        VkAccelerationStructureKHR vk_acceleration_structure = {};
         VkBuffer vk_buffer = {};
         BufferId buffer_id = {};
         u64 offset = {};
-        VkDeviceAddress device_address = {};
         bool owns_buffer = {};
+
+        static constexpr inline bool HAS_HOT_DATA = true;
+        struct HotData
+        {
+            VkAccelerationStructureKHR vk_acceleration_structure = {};
+            VkDeviceAddress device_address = {};
+        };
+    };
+
+    enum struct TryDecRefcntResult
+    {
+        SUCCESS_RECOUNT_GREATER_ZERO,
+        SUCCESS_REFCOUNT_ZERO,
+        ERROR_INVALID_ID,
     };
 
     /**
@@ -78,7 +125,7 @@ namespace daxa
      * To check if these assumptions are met at runtime, the debug define DAXA_GPU_ID_VALIDATION can be enabled.
      * The define enables runtime checking to detect use after free and double free at the cost of performance.
      */
-    template <typename ResourceT>
+    template <typename ResourceT = ImplBufferSlot>
     struct GpuResourcePool
     {
         static constexpr inline usize MAX_RESOURCE_COUNT = 1u << 20u;
@@ -87,10 +134,28 @@ namespace daxa
         static constexpr inline usize PAGE_MASK = PAGE_SIZE - 1u;
         static constexpr inline usize PAGE_COUNT = MAX_RESOURCE_COUNT / PAGE_SIZE;
         using VersionAndRefcntT = std::atomic_uint64_t;
-        static constexpr inline u64 VERSION_ZOMBIE_BIT = 1ull << 63ull;
-        static constexpr inline u64 VERSION_COUNT_MASK = ~(VERSION_ZOMBIE_BIT);
+        static constexpr inline u64 VERSION_COUNT_MASK = (1ull << DAXA_ID_VERSION_BITS) - 1;
+        static constexpr inline u64 REF_COUNT_BITS = (64u - DAXA_ID_VERSION_BITS);
+        static constexpr inline u64 REF_COUNT_MASK = (1ull << REF_COUNT_BITS) - 1;
+        static constexpr inline u64 REF_COUNT_OFFSET = DAXA_ID_VERSION_BITS;
         // TODO: split up slots into hot and cold data.
-        using PageT = std::array<std::pair<ResourceT, VersionAndRefcntT>, PAGE_SIZE>;
+        using PageT = std::array<ResourceT, PAGE_SIZE>;
+
+        static auto get_refcnt(u64 version_refcnt) -> u64
+        {
+            return (version_refcnt >> REF_COUNT_OFFSET) & REF_COUNT_MASK;
+        }
+
+        static auto get_version(u64 version_refcnt) -> u64
+        {
+            return version_refcnt & VERSION_COUNT_MASK;
+        }
+
+        static auto pack_version_refcnt(u64 version, u64 refcnt) -> u64
+        {
+            DAXA_DBG_ASSERT_TRUE_M(refcnt < (1u << REF_COUNT_BITS) - 1, "Exceeded max possible gpu resource object reference count!");
+            return (version & VERSION_COUNT_MASK) | ((refcnt & REF_COUNT_MASK) << REF_COUNT_OFFSET);
+        }
 
         // TODO: replace with lockless queue.
         std::vector<u32> free_index_stack = {};
@@ -99,7 +164,9 @@ namespace daxa
 
         mutable std::mutex mut = {};
         std::mutex page_alloc_mtx = {};
-        std::array<std::unique_ptr<PageT>, PAGE_COUNT> pages = {};
+        std::array<std::unique_ptr<PageT>, PAGE_COUNT> paged_data = {};
+        using HotDataAndVersion = std::pair<typename ResourceT::HotData, VersionAndRefcntT>;
+        std::vector<HotDataAndVersion> hot_data = {};
         std::atomic_uint32_t valid_page_count = {};
 
         /**
@@ -116,11 +183,12 @@ namespace daxa
             auto const page = static_cast<usize>(id.index) >> PAGE_BITS;
             auto const offset = static_cast<usize>(id.index) & PAGE_MASK;
             // Remove Zombie Mark Bit.
-            auto const version = VERSION_COUNT_MASK & this->pages[page]->at(offset).second.load(std::memory_order_relaxed);
+            auto const version_refcnt = VERSION_COUNT_MASK & this->hot_data.at(id.index).second.load(std::memory_order_relaxed);
+            auto const version = get_version(version_refcnt);
             // Slots that reached max version CAN NOT be recycled.
             // That is because we can not guarantee uniqueness of ids when the version wraps back to 0.
             // Clear slot MUST HAPPEN before pushing into free list.
-            this->pages[page]->at(offset).first = {};
+            this->paged_data.at(page)->at(offset) = {};
             if (version != DAXA_ID_VERSION_MASK /* this is the maximum value a version is allowed to reach */)
             {
                 std::unique_lock l{mut};
@@ -137,7 +205,7 @@ namespace daxa
          *
          * @return The new resource slot and its id. Can fail if max resources is exceeded.
          */
-        auto try_create_slot() -> std::optional<std::pair<GPUResourceId, ResourceT &>>
+        auto try_create_slot() -> std::optional<std::tuple<GPUResourceId, ResourceT &, typename ResourceT::HotData &>>
         {
             u32 index;
             {
@@ -154,6 +222,9 @@ namespace daxa
                 {
                     index = this->free_index_stack.back();
                     this->free_index_stack.pop_back();
+
+                    [[maybe_unused]] u64 version_refcnt = this->hot_data.at(index).second.load(std::memory_order_relaxed);
+                    DAXA_DBG_ASSERT_TRUE_M(get_refcnt(version_refcnt) == 0, "All reused resources must be zombies! Possibly called zombify instead of destroy within device!");
                 }
             }
 
@@ -165,40 +236,100 @@ namespace daxa
                 std::unique_lock l{page_alloc_mtx};
                 if (page >= this->valid_page_count.load(std::memory_order_relaxed))
                 {
-                    this->pages[page] = std::make_unique<PageT>();
+                    this->paged_data[page] = std::make_unique<PageT>();
                     for (u32 i = 0; i < PAGE_SIZE; ++i)
                     {
-                        this->pages[page]->at(i).second.store(1ull, std::memory_order_relaxed);
+                        this->hot_data.at(page * PAGE_SIZE + i).second.store(pack_version_refcnt(1ull, 0ull), std::memory_order_relaxed);
                     }
                     // Needs to be sequential, so that the 0 writes to the versions are visible before the atomic op.
                     this->valid_page_count.fetch_add(1, std::memory_order_seq_cst);
                 }
             }
             
-            u64 version = this->pages[page]->at(offset).second.load(std::memory_order_relaxed);
-            // Remove Zombie Mark Bit.
-            version = version & VERSION_COUNT_MASK;
-            this->pages[page]->at(offset).second.store(version, std::memory_order_relaxed);
+            // Under the current logic, it us guaranteed that this section of code is the only code that will ever write to this index, even in a multi threaded scenario!
+            u64 version_refcnt = this->hot_data.at(index).second.load();
+            u64 version = get_version(version_refcnt);
+            u64 refcnt = get_refcnt(version_refcnt);
+            DAXA_DBG_ASSERT_TRUE_M(refcnt == 0, "New slots must have a previous ref count of zero! Somehow an alive resource made it into the freelist!");
+
+            version += 1;
+            refcnt += 1;
+            version_refcnt = pack_version_refcnt(version, refcnt);
+
+            // Under the current logic, it us guaranteed that this section of code is the only code that will ever write to this index, even in a multi threaded scenario!
+            this->hot_data.at(index).second.store(version_refcnt);
 
             auto const id = GPUResourceId{.index = static_cast<u64>(index), .version = version};
-            return std::optional{std::pair<GPUResourceId, ResourceT &>(id, this->pages[page]->at(offset).first)};
+            return std::optional{std::tuple<GPUResourceId, ResourceT &, typename ResourceT::HotData &>(id, this->paged_data[page]->at(offset), this->hot_data.at(index).first)};
         }
 
-        auto try_zombify(GPUResourceId id) -> bool
+        /**
+         * @brief   Attempts to decrement reference count of resource.
+         *
+         * Always threadsafe.
+         * @returns if successful. Returns false when the resource is invalid or already at 0 reference count.
+         */
+        auto try_dec_refcnt(GPUResourceId id) -> TryDecRefcntResult
         {
-            auto const page = static_cast<usize>(id.index) >> PAGE_BITS;
-            if (page >= this->valid_page_count.load(std::memory_order_relaxed))
+            if (!is_id_valid(id))
+            {
+                return TryDecRefcntResult::ERROR_INVALID_ID;
+            }
+
+            u64 version_refcnt = {};
+            u64 new_version_refcnt = {};
+            u64 new_refcnt = {};
+            do
+            {
+                version_refcnt = this->hot_data.at(id.index).second.load();
+                u64 refcnt = get_refcnt(version_refcnt);
+                u64 version = version_refcnt & VERSION_COUNT_MASK;
+                if (refcnt == 0 || version != id.version)
+                {
+                    return TryDecRefcntResult::ERROR_INVALID_ID;
+                }
+                new_refcnt = refcnt - 1;
+                new_version_refcnt = pack_version_refcnt(version_refcnt, new_refcnt);
+            }
+            while (!this->hot_data.at(id.index).second.compare_exchange_strong(
+                version_refcnt, new_version_refcnt,
+                std::memory_order_relaxed,
+                std::memory_order_relaxed));
+            return new_refcnt == 0 ? TryDecRefcntResult::SUCCESS_REFCOUNT_ZERO : TryDecRefcntResult::SUCCESS_RECOUNT_GREATER_ZERO;
+        }
+
+        /**
+         * @brief   Attempts to increment reference count of resource.
+         *
+         * Always threadsafe.
+         * @returns if successful. Returns false when the resource is invalid.
+         */
+        auto try_inc_refcnt(GPUResourceId id) -> bool
+        {
+            if (!is_id_valid(id))
             {
                 return false;
             }
-            auto const offset = static_cast<usize>(id.index) & PAGE_MASK;
-            u64 version = id.version;
-            // Explicitly mark as zombie
-            u64 const new_version = (version + 1) | VERSION_ZOMBIE_BIT;
-            return (*this->pages[page])[offset].second.compare_exchange_strong(
-                version, new_version,
+            u64 version_refcnt = {};
+            u64 new_version_refcnt = {};
+            do
+            {
+                version_refcnt = this->hot_data.at(id.index).second.load();
+                u64 refcnt = get_refcnt(version_refcnt);
+                u64 version = version_refcnt & VERSION_COUNT_MASK;
+                if (refcnt == 0 || version != id.version)
+                {
+                    return false;
+                }
+                u64 new_refcnt = refcnt + 1;
+                DAXA_DBG_ASSERT_TRUE_M(new_refcnt < ((1u << REF_COUNT_BITS) - 1), "Exceeded maximum gpu resource object reference count!");
+                new_version_refcnt = pack_version_refcnt(version_refcnt, new_refcnt);
+            }
+            while (!this->hot_data.at(id.index).second.compare_exchange_strong(
+                version_refcnt, new_version_refcnt,
                 std::memory_order_relaxed,
-                std::memory_order_relaxed);
+                std::memory_order_relaxed));
+            return true;
         }
 
         /**
@@ -209,14 +340,13 @@ namespace daxa
          */
         auto is_id_valid(GPUResourceId id) const -> bool
         {
-            auto const page = static_cast<usize>(id.index) >> PAGE_BITS;
-            auto const offset = static_cast<usize>(id.index) & PAGE_MASK;
-            if (id.version == 0 || page >= this->valid_page_count.load(std::memory_order_relaxed))
+            if (id.index >= this->max_resources || id.version == 0)
             {
                 return false;
             }
-            u64 const slot_version = (*this->pages[page])[offset].second.load(std::memory_order_relaxed);
-            return slot_version == id.version;
+            u64 const version_refcnt = this->hot_data.at(id.index).second.load(std::memory_order_relaxed);
+            bool const valid = get_version(version_refcnt) == id.version && (get_refcnt(version_refcnt) > 0);
+            return valid;
         }
 
         /**
@@ -224,15 +354,14 @@ namespace daxa
          * Always threadsafe.
          * @returns returns the current version of a slot.
          */
-        auto version_of_slot(u32 idx) const -> u64
+        auto version_refcnt_of_slot(u32 idx) const -> u64
         {
-            auto const page = static_cast<usize>(idx) >> PAGE_BITS;
-            auto const offset = static_cast<usize>(idx) & PAGE_MASK;
-            if (page >= this->valid_page_count.load(std::memory_order_relaxed))
+            if (idx >= this->max_resources)
             {
-                return 0;
+                return false;
             }
-            return (*this->pages[page])[offset].second.load(std::memory_order_relaxed);
+            u64 const version_refcnt = this->hot_data.at(std::min(idx, this->max_resources)).second;
+            return version_refcnt;
         }
 
         /**
@@ -251,7 +380,24 @@ namespace daxa
             // Clamp so we get some random slot in error case but never invalid memory!
             page = std::min(static_cast<usize>(this->valid_page_count.load(std::memory_order_relaxed)) - 1, page);
             auto const offset = static_cast<usize>(id.index) & PAGE_MASK;
-            return pages[page]->at(offset).first;
+            return this->paged_data[page]->at(offset);
+        }
+
+        auto unsafe_get_hot(GPUResourceId id) const -> ResourceT::HotData const &
+        {
+            return this->hot_data.at(std::min(static_cast<u32>(id.index), this->max_resources)).first;
+        }
+
+        auto unsafe_get_hot(u32 idx) const -> ResourceT::HotData const &
+        {
+            return this->hot_data.at(std::min(static_cast<u32>(idx), this->max_resources)).first;
+        }
+
+        auto safe_get_hot(GPUResourceId id) const -> ResourceT::HotData const *
+        {
+            auto & hot_slot = this->hot_data.data()[std::min(static_cast<u32>(id.index), this->max_resources)];
+            auto version_refcnt = hot_slot.second.load();
+            return get_version(version_refcnt) == id.version ? &hot_slot.first : nullptr;
         }
     };
 

@@ -21,37 +21,55 @@ namespace daxa
 
     DAXA_EXPORT_CXX auto to_string(ImageViewType const & type) -> std::string_view;
 
+    static constexpr inline usize ID_INDEX_BITS = 20;
+    static constexpr inline usize ID_VERSION_BITS = 44;
+
     struct DAXA_EXPORT_CXX GPUResourceId
     {
-        u64 index : 20 = {};
-        u64 version : 44 = {};
+        u64 index : ID_INDEX_BITS = {};
+        u64 version : ID_VERSION_BITS = {};
 
-        auto is_empty() const -> bool;
-
-        constexpr auto operator<=>(GPUResourceId const & other) const
-        {
-            return std::bit_cast<u64>(*this) <=> std::bit_cast<u64>(other);
-        }
+        auto is_empty() const -> bool { return version == 0; }
         constexpr bool operator==(GPUResourceId const & other) const = default;
         constexpr bool operator!=(GPUResourceId const & other) const = default;
-        constexpr bool operator<(GPUResourceId const & other) const = default;
-        constexpr bool operator>(GPUResourceId const & other) const = default;
-        constexpr bool operator<=(GPUResourceId const & other) const = default;
-        constexpr bool operator>=(GPUResourceId const & other) const = default;
     };
 
     inline namespace types
     {
-        struct BufferId : public GPUResourceId
+        struct DAXA_EXPORT_CXX BufferId
         {
+            u64 index : ID_INDEX_BITS = {};
+            u64 version : ID_VERSION_BITS = {};
+
+            auto is_empty() const -> bool { return version == 0; }
+            constexpr bool operator==(BufferId const & other) const = default;
+            constexpr bool operator!=(BufferId const & other) const = default;
+
+            constexpr operator GPUResourceId() const { return std::bit_cast<GPUResourceId>(*this); }
             constexpr operator daxa_BufferId() const { return std::bit_cast<daxa_BufferId>(*this); }
         };
+        static_assert(std::is_standard_layout_v<BufferId>);
+#ifndef __clang__ // MSVC STL does not implement these for clang :/
+        static_assert(std::is_layout_compatible_v<GPUResourceId, BufferId>);
+#endif
 
-        struct ImageViewId : public GPUResourceId
+        struct DAXA_EXPORT_CXX ImageViewId
         {
+            u64 index : ID_INDEX_BITS = {};
+            u64 version : ID_VERSION_BITS = {};
+
+            auto is_empty() const -> bool { return version == 0; }
+            constexpr bool operator==(ImageViewId const & other) const = default;
+            constexpr bool operator!=(ImageViewId const & other) const = default;
+            
+            operator GPUResourceId() const { return std::bit_cast<GPUResourceId>(*this); }
             constexpr operator daxa_ImageViewId() const { return std::bit_cast<daxa_ImageViewId>(*this); }
             constexpr operator daxa_ImageViewIndex() const { return daxa_ImageViewIndex(index); }
         };
+        static_assert(std::is_standard_layout_v<ImageViewId>);
+#ifndef __clang__ // MSVC STL does not implement these for clang :/
+        static_assert(std::is_layout_compatible_v<GPUResourceId, ImageViewId>);
+#endif
 
         // Shader only
         struct ImageViewIndex
@@ -66,36 +84,89 @@ namespace daxa
             static constexpr inline auto view_type() -> ImageViewType { return VIEW_TYPE; }
         };
 
-        struct ImageId : public GPUResourceId
+        struct DAXA_EXPORT_CXX ImageId
         {
-            constexpr operator daxa_ImageId() const { return std::bit_cast<daxa_ImageId>(*this); }
-            DAXA_EXPORT_CXX auto default_view() const -> ImageViewId;
-        };
+            u64 index : ID_INDEX_BITS = {};
+            u64 version : ID_VERSION_BITS = {};
 
-        struct SamplerId : public GPUResourceId
+            auto is_empty() const -> bool { return version == 0; }
+            constexpr bool operator==(ImageId const & other) const = default;
+            constexpr bool operator!=(ImageId const & other) const = default;
+
+            constexpr operator GPUResourceId() const { return std::bit_cast<GPUResourceId>(*this); }
+            constexpr operator daxa_ImageId() const { return std::bit_cast<daxa_ImageId>(*this); }
+            auto default_view() const -> ImageViewId { return { .index = index, .version = version }; }
+        };
+        static_assert(std::is_standard_layout_v<ImageId>);
+#ifndef __clang__ // MSVC STL does not implement these for clang :/
+        static_assert(std::is_layout_compatible_v<GPUResourceId, ImageId>);
+#endif
+
+        struct DAXA_EXPORT_CXX SamplerId
         {
+            u64 index : ID_INDEX_BITS = {};
+            u64 version : ID_VERSION_BITS = {};
+
+            auto is_empty() const -> bool { return version == 0; }
+            constexpr bool operator==(SamplerId const & other) const = default;
+            constexpr bool operator!=(SamplerId const & other) const = default;
+
+            constexpr operator GPUResourceId() const { return std::bit_cast<GPUResourceId>(*this); }
             constexpr operator daxa_SamplerId() const { return std::bit_cast<daxa_SamplerId>(*this); }
         };
+        static_assert(std::is_standard_layout_v<SamplerId>);
+#ifndef __clang__ // MSVC STL does not implement these for clang :/
+        static_assert(std::is_layout_compatible_v<GPUResourceId, SamplerId>);
+#endif
 
-        struct TlasId : public GPUResourceId
+        struct DAXA_EXPORT_CXX BlasId
         {
-            operator daxa_TlasId() const { return std::bit_cast<daxa_TlasId>(*this); }
-        };
+            u64 index : ID_INDEX_BITS = {};
+            u64 version : ID_VERSION_BITS = {};
 
-        struct BlasId : public GPUResourceId
-        {
-            operator daxa_BlasId() const { return std::bit_cast<daxa_BlasId>(*this); }
+            auto is_empty() const -> bool { return version == 0; }
+            constexpr bool operator==(BlasId const & other) const = default;
+            constexpr bool operator!=(BlasId const & other) const = default;
+
+            constexpr operator GPUResourceId() const { return std::bit_cast<GPUResourceId>(*this); }
+            constexpr operator daxa_BlasId() const { return std::bit_cast<daxa_BlasId>(*this); }
         };
+        static_assert(std::is_standard_layout_v<BlasId>);
+#ifndef __clang__ // MSVC STL does not implement these for clang :/
+        static_assert(std::is_layout_compatible_v<GPUResourceId, BlasId>);
+#endif
+
+        struct DAXA_EXPORT_CXX TlasId
+        {
+            u64 index : ID_INDEX_BITS = {};
+            u64 version : ID_VERSION_BITS = {};
+
+            auto is_empty() const -> bool { return version == 0; }
+            constexpr bool operator==(TlasId const & other) const = default;
+            constexpr bool operator!=(TlasId const & other) const = default;
+
+            constexpr operator GPUResourceId() const { return std::bit_cast<GPUResourceId>(*this); }
+            constexpr operator daxa_TlasId() const { return std::bit_cast<daxa_TlasId>(*this); }
+        };
+        static_assert(std::is_standard_layout_v<TlasId>);
+#ifndef __clang__ // MSVC STL does not implement these for clang :/
+        static_assert(std::is_layout_compatible_v<GPUResourceId, TlasId>);
+#endif
+
     } // namespace types
 
-    DAXA_EXPORT_CXX auto to_string(GPUResourceId const & id) -> std::string;
+    DAXA_EXPORT_CXX auto to_string(GPUResourceId id) -> std::string;
+    DAXA_EXPORT_CXX auto to_string(BufferId buffer) -> std::string;
+    DAXA_EXPORT_CXX auto to_string(ImageViewId image_view) -> std::string;
+    DAXA_EXPORT_CXX auto to_string(ImageId image) -> std::string;
+    DAXA_EXPORT_CXX auto to_string(BlasId blas) -> std::string;
+    DAXA_EXPORT_CXX auto to_string(TlasId tlas) -> std::string;
 
     struct BufferInfo
     {
         usize size = {};
-        usize alignment = {};
         // Ignored when allocating with a memory block.
-        MemoryFlags allocate_info = {};
+        MemoryFlags memory_flags = {};
         SmallString name = {};
     };
 
@@ -113,11 +184,7 @@ namespace daxa
         static inline constexpr ImageCreateFlags ALLOW_ALIAS = {0x00000400};
     };
 
-    enum struct SharingMode
-    {
-        EXCLUSIVE,
-        CONCURRENT,
-    };
+    DAXA_EXPORT_CXX auto to_string(ImageCreateFlags flags) -> std::string;
 
     struct ImageInfo
     {
@@ -129,9 +196,8 @@ namespace daxa
         u32 array_layer_count = 1;
         u32 sample_count = 1;
         ImageUsageFlags usage = {};
-        SharingMode sharing_mode = SharingMode::EXCLUSIVE;
         // Ignored when allocating with a memory block.
-        MemoryFlags allocate_info = {};
+        MemoryFlags memory_flags = {};
         SmallString name = {};
     };
 

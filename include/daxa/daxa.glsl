@@ -235,7 +235,7 @@ DAXA_ACCELERATION_STRUCTURE_LAYOUT uniform accelerationStructureEXT daxa_Acceler
     {                                                        \
         readonly STRUCT_TYPE value;                          \
     };
-#define _DAXA_FWD_DECL_BUFFER_PTR_HELPER(STRUCT_TYPE)         \
+#define _DAXA_FWD_DECL_BUFFER_PTR_HELPER(STRUCT_TYPE)              \
     layout(buffer_reference) buffer daxa_RWBufferPtr##STRUCT_TYPE; \
     layout(buffer_reference) buffer daxa_BufferPtr##STRUCT_TYPE;
 
@@ -341,9 +341,14 @@ _DAXA_DECL_IMAGE(1D)
 #define daxa_sampler1D(image_view_id, sampler_id) _DAXA_GET_SAMPLER(1D, image_view_id, sampler_id)
 #define daxa_isampler1D(image_view_id, sampler_id) _DAXA_GET_ISAMPLER(1D, image_view_id, sampler_id)
 #define daxa_usampler1D(image_view_id, sampler_id) _DAXA_GET_USAMPLER(1D, image_view_id, sampler_id)
-#define daxa_samplerShadow1D(image_view_id, sampler_id) _DAXA_GET_SAMPLERSHADOW(1D, image_view_id, sampler_id)
-#define daxa_isamplerShadow1D(image_view_id, sampler_id) _DAXA_GET_ISAMPLERSHADOW(1D, image_view_id, sampler_id)
-#define daxa_usamplerShadow1D(image_view_id, sampler_id) _DAXA_GET_USAMPLERSHADOW(1D, image_view_id, sampler_id)
+#define daxa_sampler1DShadow(image_view_id, sampler_id) _DAXA_GET_SAMPLERSHADOW(1D, image_view_id, sampler_id)
+#define daxa_isampler1DShadow(image_view_id, sampler_id) _DAXA_GET_ISAMPLERSHADOW(1D, image_view_id, sampler_id)
+#define daxa_usampler1DShadow(image_view_id, sampler_id) _DAXA_GET_USAMPLERSHADOW(1D, image_view_id, sampler_id)
+
+// Deprecated, inconsistent naming vs. all other dimensions
+#define daxa_samplerShadow1D(image_view_id, sampler_id) daxa_sampler1DShadow(image_view_id, sampler_id)
+#define daxa_isamplerShadow1D(image_view_id, sampler_id) daxa_isampler1DShadow(image_view_id, sampler_id)
+#define daxa_usamplerShadow1D(image_view_id, sampler_id) daxa_usampler1DShadow(image_view_id, sampler_id)
 
 _DAXA_DECL_IMAGE(2D)
 #define daxa_image2D(image_view_id) _DAXA_GET_IMAGE(2D, image_view_id)
@@ -511,15 +516,15 @@ DAXA_DECL_BUFFER_PTR(daxa_u32)
 DAXA_DECL_BUFFER_PTR(daxa_u32vec2)
 DAXA_DECL_BUFFER_PTR(daxa_u32vec3)
 DAXA_DECL_BUFFER_PTR(daxa_u32vec4)
-DAXA_DECL_BUFFER_PTR_ALIGN(daxa_i64, 8)
+DAXA_DECL_BUFFER_PTR(daxa_i64)
 // DAXA_DECL_BUFFER_PTR(daxa_i64vec1) // covered by daxa_i64
-DAXA_DECL_BUFFER_PTR_ALIGN(daxa_i64vec2, 8)
-DAXA_DECL_BUFFER_PTR_ALIGN(daxa_i64vec3, 8)
-DAXA_DECL_BUFFER_PTR_ALIGN(daxa_i64vec4, 8)
-DAXA_DECL_BUFFER_PTR_ALIGN(daxa_u64, 8)
+DAXA_DECL_BUFFER_PTR(daxa_i64vec2)
+DAXA_DECL_BUFFER_PTR(daxa_i64vec3)
+DAXA_DECL_BUFFER_PTR(daxa_i64vec4)
+DAXA_DECL_BUFFER_PTR(daxa_u64)
 // DAXA_DECL_BUFFER_PTR(daxa_u64vec1) // covered by daxa_u64
-DAXA_DECL_BUFFER_PTR_ALIGN(daxa_u64vec2, 8)
-DAXA_DECL_BUFFER_PTR_ALIGN(daxa_u64vec3, 8)
+DAXA_DECL_BUFFER_PTR(daxa_u64vec2)
+DAXA_DECL_BUFFER_PTR(daxa_u64vec3)
 
 DAXA_DECL_BUFFER_PTR(daxa_BufferId)
 DAXA_DECL_BUFFER_PTR(daxa_ImageViewId)

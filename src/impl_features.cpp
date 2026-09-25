@@ -1,3 +1,5 @@
+#include "impl_core.hpp"
+
 #include "impl_features.hpp"
 
 namespace daxa
@@ -165,6 +167,13 @@ namespace daxa
             chain = static_cast<void *>(&physical_device_shader_clock_features_khr);
         }
 
+        if (extensions.extensions_present[extensions.physical_device_host_image_copy_ext])
+        {
+            physical_device_host_image_copy_features_ext.pNext = chain;
+            physical_device_host_image_copy_features_ext.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_HOST_IMAGE_COPY_FEATURES_EXT;
+            chain = static_cast<void *>(&physical_device_host_image_copy_features_ext);
+        }
+
         if (extensions.extensions_present[extensions.physical_device_line_rasterization_khr])
         {
             physical_device_line_rasterization_features_khr.pNext = chain;
@@ -179,20 +188,6 @@ namespace daxa
             chain = static_cast<void *>(&physical_device_pipeline_library_group_handles_ext);
         }
 
-        if (extensions.extensions_present[extensions.physical_device_present_id_khr])
-        {
-            physical_device_present_id_features_khr.pNext = chain;
-            physical_device_present_id_features_khr.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_ID_FEATURES_KHR;
-            chain = static_cast<void *>(&physical_device_present_id_features_khr);
-        }
-
-        if (extensions.extensions_present[extensions.physical_device_present_wait_khr])
-        {
-            physical_device_present_wait_features_khr.pNext = chain;
-            physical_device_present_wait_features_khr.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_WAIT_FEATURES_KHR;
-            chain = static_cast<void *>(&physical_device_present_wait_features_khr);
-        }
-
         physical_device_shader_demote_to_helper_invocation_features.pNext = chain;
         physical_device_shader_demote_to_helper_invocation_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DEMOTE_TO_HELPER_INVOCATION_FEATURES;
         physical_device_shader_demote_to_helper_invocation_features.shaderDemoteToHelperInvocation = true;
@@ -200,8 +195,6 @@ namespace daxa
 
         conservative_rasterization = extensions.extensions_present[extensions.physical_device_conservative_rasterization_ext];
         swapchain = extensions.extensions_present[extensions.physical_device_swapchain_khr];
-        calibrated_timestamps = extensions.extensions_present[extensions.physical_device_calibrated_timestamps_khr] ||
-                                extensions.extensions_present[extensions.physical_device_calibrated_timestamps_ext];
 
         physical_device_features_2.pNext = chain;
         physical_device_features_2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
@@ -229,6 +222,7 @@ namespace daxa
         RequiredFeature{offsetof(PhysicalDeviceFeaturesStruct, physical_device_features_2.features.shaderStorageImageReadWithoutFormat), DAXA_MISSING_REQUIRED_VK_FEATURE_SHADER_STORAGE_IMAGE_READ_WITHOUT_FORMAT},
         RequiredFeature{offsetof(PhysicalDeviceFeaturesStruct, physical_device_features_2.features.shaderStorageImageWriteWithoutFormat), DAXA_MISSING_REQUIRED_VK_FEATURE_SHADER_STORAGE_IMAGE_WRITE_WITHOUT_FORMAT},
         RequiredFeature{offsetof(PhysicalDeviceFeaturesStruct, physical_device_features_2.features.shaderInt64), DAXA_MISSING_REQUIRED_VK_FEATURE_SHADER_INT64},
+        RequiredFeature{offsetof(PhysicalDeviceFeaturesStruct, physical_device_features_2.features.shaderImageGatherExtended), DAXA_MISSING_REQUIRED_VK_FEATURE_IMAGE_GATHER_EXTENDED}, // Slang constantly adds this SPIRV feature.
         RequiredFeature{offsetof(PhysicalDeviceFeaturesStruct, physical_device_variable_pointer_features.variablePointersStorageBuffer), DAXA_MISSING_REQUIRED_VK_FEATURE_VARIABLE_POINTERS_STORAGE_BUFFER},
         RequiredFeature{offsetof(PhysicalDeviceFeaturesStruct, physical_device_variable_pointer_features.variablePointers), DAXA_MISSING_REQUIRED_VK_FEATURE_VARIABLE_POINTERS},
         RequiredFeature{offsetof(PhysicalDeviceFeaturesStruct, physical_device_buffer_device_address_features.bufferDeviceAddress), DAXA_MISSING_REQUIRED_VK_FEATURE_BUFFER_DEVICE_ADDRESS},
@@ -350,6 +344,9 @@ namespace daxa
         offsetof(PhysicalDeviceFeaturesStruct, physical_device_shader_clock_features_khr.shaderDeviceClock),
     };
 
+    constexpr static std::array DAXA_IMPLICIT_FEATURE_FLAG_HOST_IMAGE_COPY_VK_FEATURES = std::array{
+        offsetof(PhysicalDeviceFeaturesStruct, physical_device_host_image_copy_features_ext.hostImageCopy),
+    };
     constexpr static std::array DAXA_IMPLICIT_FEATURE_FLAG_LINE_RASTERIZATION_VK_FEATURES = std::array{
         offsetof(PhysicalDeviceFeaturesStruct, physical_device_line_rasterization_features_khr.rectangularLines),
         offsetof(PhysicalDeviceFeaturesStruct, physical_device_line_rasterization_features_khr.bresenhamLines),
@@ -357,15 +354,6 @@ namespace daxa
         offsetof(PhysicalDeviceFeaturesStruct, physical_device_line_rasterization_features_khr.stippledRectangularLines),
         offsetof(PhysicalDeviceFeaturesStruct, physical_device_line_rasterization_features_khr.stippledBresenhamLines),
         offsetof(PhysicalDeviceFeaturesStruct, physical_device_line_rasterization_features_khr.stippledSmoothLines),
-    };
-
-    constexpr static std::array DAXA_IMPLICIT_FEATURE_FLAG_PRESENT_WAIT_VK_FEATURES = std::array{
-        offsetof(PhysicalDeviceFeaturesStruct, physical_device_present_id_features_khr.presentId),
-        offsetof(PhysicalDeviceFeaturesStruct, physical_device_present_wait_features_khr.presentWait),
-    };
-
-    constexpr static std::array DAXA_IMPLICIT_FEATURE_FLAG_CALIBRATED_TIMESTAMPS_VK_FEATURES = std::array{
-        offsetof(PhysicalDeviceFeaturesStruct, calibrated_timestamps),
     };
 
     constexpr static std::array IMPLICIT_FEATURES = std::array{
@@ -385,9 +373,8 @@ namespace daxa
         ImplicitFeature{DAXA_IMPLICIT_FEATURE_FLAG_SWAPCHAIN_VK_FEATURES, DAXA_IMPLICIT_FEATURE_FLAG_SWAPCHAIN},
         ImplicitFeature{DAXA_IMPLICIT_FEATURE_FLAG_SHADER_INT16_VK_FEATURES, DAXA_IMPLICIT_FEATURE_FLAG_SHADER_INT16},
         ImplicitFeature{DAXA_IMPLICIT_FEATURE_FLAG_SHADER_CLOCK_VK_FEATURES, DAXA_IMPLICIT_FEATURE_FLAG_SHADER_CLOCK},
+        ImplicitFeature{DAXA_IMPLICIT_FEATURE_FLAG_HOST_IMAGE_COPY_VK_FEATURES, DAXA_IMPLICIT_FEATURE_FLAG_HOST_IMAGE_COPY},
         ImplicitFeature{DAXA_IMPLICIT_FEATURE_FLAG_LINE_RASTERIZATION_VK_FEATURES, DAXA_IMPLICIT_FEATURE_FLAG_LINE_RASTERIZATION},
-        ImplicitFeature{DAXA_IMPLICIT_FEATURE_FLAG_PRESENT_WAIT_VK_FEATURES, DAXA_IMPLICIT_FEATURE_FLAG_PRESENT_WAIT},
-        ImplicitFeature{DAXA_IMPLICIT_FEATURE_FLAG_CALIBRATED_TIMESTAMPS_VK_FEATURES, DAXA_IMPLICIT_FEATURE_FLAG_CALIBRATED_TIMESTAMPS},
     };
 
     // === Explicit Features ===
@@ -553,6 +540,13 @@ namespace daxa
             chain = static_cast<void *>(&physical_device_mesh_shader_properties_ext);
         }
 
+        if (implicit_features & DAXA_IMPLICIT_FEATURE_FLAG_HOST_IMAGE_COPY)
+        {
+            physical_device_host_image_copy_properties_ext.pNext = chain;
+            physical_device_host_image_copy_properties_ext.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_HOST_IMAGE_COPY_PROPERTIES_EXT;
+            chain = static_cast<void *>(&physical_device_host_image_copy_properties_ext);
+        }
+
         physical_device_subgroup_size_control_properties.pNext = chain;
         physical_device_subgroup_size_control_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_PROPERTIES;
         chain = static_cast<void *>(&physical_device_subgroup_size_control_properties);
@@ -561,7 +555,7 @@ namespace daxa
         physical_device_properties_2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
     }
 
-    void fill_daxa_device_properties(PhysicalDeviceExtensionsStruct const & extensions, PhysicalDeviceFeaturesStruct const & features, VkPhysicalDevice physical_device, daxa_DeviceProperties * out)
+    void fill_daxa_device_properties(PhysicalDeviceExtensionsStruct const &, PhysicalDeviceFeaturesStruct const & features, VkPhysicalDevice physical_device, daxa_DeviceProperties * out)
     {
         auto flags = create_feature_flags(features);
         out->implicit_features = flags.first;
@@ -575,10 +569,11 @@ namespace daxa
         vkGetPhysicalDeviceProperties2(physical_device, &properties_struct.physical_device_properties_2);
 
         // Copy VkPhysicalDeviceProperties to daxa_DeviceProperties beginning.
-        // Copy all fields uo to sparseProperties.
+        // Copy all fields up to sparseProperties.
+        static_assert(offsetof(daxa_DeviceProperties, mesh_shader_properties) == offsetof(VkPhysicalDeviceProperties, sparseProperties));
         std::memcpy(
             out,
-            r_cast<std::byte const *>(&properties_struct.physical_device_properties_2) + sizeof(void *) * 2 /* skip sType and pNext */,
+            r_cast<std::byte const *>(&properties_struct.physical_device_properties_2) + sizeof(void *) * 2, // skip sType and pNext
             offsetof(daxa_DeviceProperties, mesh_shader_properties));
 
         if (out->implicit_features & DAXA_IMPLICIT_FEATURE_FLAG_RAY_TRACING_PIPELINE)
@@ -617,20 +612,29 @@ namespace daxa
             out->mesh_shader_properties.value.prefers_compact_vertex_output = static_cast<daxa_Bool8>(properties_struct.physical_device_mesh_shader_properties_ext.prefersCompactVertexOutput);
             out->mesh_shader_properties.value.prefers_compact_primitive_output = static_cast<daxa_Bool8>(properties_struct.physical_device_mesh_shader_properties_ext.prefersCompactPrimitiveOutput);
         }
+        if (out->implicit_features & DAXA_IMPLICIT_FEATURE_FLAG_HOST_IMAGE_COPY)
+        {
+            out->host_image_copy_properties.has_value = 1;
+            std::memcpy(
+                &out->host_image_copy_properties.value.optimal_tiling_layout_uuid[0],
+                r_cast<std::byte const *>(&properties_struct.physical_device_host_image_copy_properties_ext.optimalTilingLayoutUUID[0]),
+                sizeof(daxa_HostImageCopyProperties::optimal_tiling_layout_uuid));
+            out->host_image_copy_properties.value.identical_memory_type_requirements = static_cast<daxa_Bool8>(properties_struct.physical_device_host_image_copy_properties_ext.identicalMemoryTypeRequirements);
+        }
 
         out->required_subgroup_size_stages = properties_struct.physical_device_subgroup_size_control_properties.requiredSubgroupSizeStages;
 
-        u32 queue_family_props_count = 0;
+        u32 queue_type_props_count = 0;
         std::vector<VkQueueFamilyProperties> queue_props;
-        vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_family_props_count, nullptr);
-        queue_props.resize(queue_family_props_count);
-        vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_family_props_count, queue_props.data());
+        vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_type_props_count, nullptr);
+        queue_props.resize(queue_type_props_count);
+        vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_type_props_count, queue_props.data());
         std::vector<VkBool32> supports_present;
-        supports_present.resize(queue_family_props_count);
+        supports_present.resize(queue_type_props_count);
 
         out->compute_queue_count = ~0u;
         out->transfer_queue_count = ~0u;
-        for (u32 i = 0; i < queue_family_props_count; i++)
+        for (u32 i = 0; i < queue_type_props_count; i++)
         {
             bool const supports_graphics = queue_props[i].queueFlags & VK_QUEUE_GRAPHICS_BIT;
             bool const supports_compute = queue_props[i].queueFlags & VK_QUEUE_COMPUTE_BIT;

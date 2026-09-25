@@ -157,7 +157,12 @@ namespace daxa
     [[vk::binding(DAXA_ACCELERATION_STRUCTURE_BINDING, 0)]] RaytracingAccelerationStructure RayTracingAccelerationStructureTable[];
     extension RaytracingAccelerationStructure
     {
-        static RaytracingAccelerationStructure get(daxa::TlasId i) { return RayTracingAccelerationStructureTable[i.index()]; }
+        static RaytracingAccelerationStructure get(daxa::u64 address) 
+        {
+            return spirv_asm {
+                result:$$RaytracingAccelerationStructure = OpConvertUToAccelerationStructureKHR $address
+            };
+        }
     }
 
     struct TlasId
@@ -174,10 +179,6 @@ namespace daxa
         daxa_b32 is_empty()
         {
             return value == 0;
-        }
-        RaytracingAccelerationStructure get()
-        {
-            return RayTracingAccelerationStructureTable[index()];
         }
     };
 #endif // DAXA_RAY_TRACING
@@ -209,13 +210,13 @@ namespace daxa\
 } \
 extension TYPE<daxa::u32>\
 {\
-    static TYPE<daxa::u32> get_formatted(daxa::ImageViewId i) { return daxa::TYPE ## u32_table[i.index()]; }\
-    static TYPE<daxa::u32> get_formatted(daxa::ImageViewIndex i) { return daxa::TYPE ## u32_table[i.index()]; }\
+    static TYPE<daxa::u32> get_formatted(daxa::ImageViewId i) { return daxa::TYPE ## u32_table[NonUniformResourceIndex(i.index())]; }\
+    static TYPE<daxa::u32> get_formatted(daxa::ImageViewIndex i) { return daxa::TYPE ## u32_table[NonUniformResourceIndex(i.index())]; }\
 }\
 extension TYPE<daxa::u64>\
 {\
-    static TYPE<daxa::u64> get_formatted(daxa::ImageViewId i) { return daxa::TYPE ## u64_table[i.index()]; }\
-    static TYPE<daxa::u64> get_formatted(daxa::ImageViewIndex i) { return daxa::TYPE ## u64_table[i.index()]; }\
+    static TYPE<daxa::u64> get_formatted(daxa::ImageViewId i) { return daxa::TYPE ## u64_table[NonUniformResourceIndex(i.index())]; }\
+    static TYPE<daxa::u64> get_formatted(daxa::ImageViewIndex i) { return daxa::TYPE ## u64_table[NonUniformResourceIndex(i.index())]; }\
 }\
 namespace daxa {\
     extension TYPE ## Id<daxa::u32>\
@@ -239,10 +240,10 @@ namespace daxa {\
 #define _DAXA_DECL_TEX_EXTENSION(TYPE, TABLE)\
 __generic<T : ITexelElement> extension TYPE<T>\
 {\
-    static TYPE<T> get(daxa::ImageViewId i) { return TABLE[i.index()]; }\
-    static TYPE<T> get(daxa::ImageViewIndex i) { return TABLE[i.index()]; }\
-    static TYPE<T> get_coherent(daxa::ImageViewId i) { return TABLE ## _coherent[i.index()]; }\
-    static TYPE<T> get_coherent(daxa::ImageViewIndex i) { return TABLE ## _coherent[i.index()]; }\
+    static TYPE<T> get(daxa::ImageViewId i) { return TABLE[NonUniformResourceIndex(i.index())]; }\
+    static TYPE<T> get(daxa::ImageViewIndex i) { return TABLE[NonUniformResourceIndex(i.index())]; }\
+    static TYPE<T> get_coherent(daxa::ImageViewId i) { return TABLE ## _coherent[NonUniformResourceIndex(i.index())]; }\
+    static TYPE<T> get_coherent(daxa::ImageViewIndex i) { return TABLE ## _coherent[NonUniformResourceIndex(i.index())]; }\
 }\
 namespace daxa\
 {\

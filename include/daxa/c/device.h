@@ -9,8 +9,9 @@
 #include <daxa/c/swapchain.h>
 #include <daxa/c/sync.h>
 
-#define DAXA_MAX_COMPUTE_QUEUE_COUNT 8u
+#define DAXA_MAX_COMPUTE_QUEUE_COUNT 4u
 #define DAXA_MAX_TRANSFER_QUEUE_COUNT 2u
+#define DAXA_QUEUE_COUNT (1u + DAXA_MAX_COMPUTE_QUEUE_COUNT + DAXA_MAX_TRANSFER_QUEUE_COUNT)
 
 typedef enum
 {
@@ -164,6 +165,13 @@ typedef struct
     uint32_t invocation_reorder_mode;
 } daxa_RayTracingInvocationReorderProperties;
 
+// Is NOT ABI Compatible with VkPhysicalDeviceHostImageCopyProperties!
+typedef struct
+{
+    uint8_t optimal_tiling_layout_uuid[16U];
+    daxa_Bool8 identical_memory_type_requirements;
+} daxa_HostImageCopyProperties;
+
 // Is NOT ABI Compatible with VkPhysicalDeviceMeshShaderPropertiesEXT!
 typedef struct
 {
@@ -213,6 +221,7 @@ typedef enum
     DAXA_MISSING_REQUIRED_VK_FEATURE_SHADER_STORAGE_IMAGE_READ_WITHOUT_FORMAT,
     DAXA_MISSING_REQUIRED_VK_FEATURE_SHADER_STORAGE_IMAGE_WRITE_WITHOUT_FORMAT,
     DAXA_MISSING_REQUIRED_VK_FEATURE_SHADER_INT64,
+    DAXA_MISSING_REQUIRED_VK_FEATURE_IMAGE_GATHER_EXTENDED,
     DAXA_MISSING_REQUIRED_VK_FEATURE_VARIABLE_POINTERS_STORAGE_BUFFER,
     DAXA_MISSING_REQUIRED_VK_FEATURE_VARIABLE_POINTERS,
     DAXA_MISSING_REQUIRED_VK_FEATURE_BUFFER_DEVICE_ADDRESS,
@@ -271,9 +280,8 @@ typedef enum
     DAXA_IMPLICIT_FEATURE_FLAG_SWAPCHAIN = 0x1 << 12,
     DAXA_IMPLICIT_FEATURE_FLAG_SHADER_INT16 = 0x1 << 13,
     DAXA_IMPLICIT_FEATURE_FLAG_SHADER_CLOCK = 0x1 << 14,
-    DAXA_IMPLICIT_FEATURE_FLAG_LINE_RASTERIZATION = 0x1 << 15,
-    DAXA_IMPLICIT_FEATURE_FLAG_PRESENT_WAIT = 0x1 << 16,
-    DAXA_IMPLICIT_FEATURE_FLAG_CALIBRATED_TIMESTAMPS = 0x1 << 17,
+    DAXA_IMPLICIT_FEATURE_FLAG_HOST_IMAGE_COPY = 0x1 << 15,
+    DAXA_IMPLICIT_FEATURE_FLAG_LINE_RASTERIZATION = 0x1 << 16,
 } daxa_DeviceImplicitFeatureFlagBits;
 
 typedef daxa_DeviceImplicitFeatureFlagBits daxa_ImplicitFeatureFlags;
@@ -292,6 +300,7 @@ typedef struct
     daxa_Optional(daxa_RayTracingPipelineProperties) ray_tracing_pipeline_properties;
     daxa_Optional(daxa_AccelerationStructureProperties) acceleration_structure_properties;
     daxa_Optional(daxa_RayTracingInvocationReorderProperties) ray_tracing_invocation_reorder_properties;
+    daxa_Optional(daxa_HostImageCopyProperties) host_image_copy_properties;
     daxa_u32 required_subgroup_size_stages;
     daxa_u32 compute_queue_count;
     daxa_u32 transfer_queue_count;
@@ -299,54 +308,6 @@ typedef struct
     daxa_ExplicitFeatureFlags explicit_features;
     daxa_MissingRequiredVkFeature missing_required_feature;
 } daxa_DeviceProperties;
-
-/// DEPRECATED: use daxa_instance_create_device_2 and daxa_DeviceInfo2 instead!
-DAXA_EXPORT int32_t
-daxa_default_device_score(daxa_DeviceProperties const * properties);
-
-/// WARNING: DEPRECATED, use daxa_ImplicitFeatureFlags and daxa_ExplicitFeatureFlags instead!
-typedef enum
-{
-    DAXA_DEVICE_FLAG_BUFFER_DEVICE_ADDRESS_CAPTURE_REPLAY_BIT = 0x1 << 0,
-    DAXA_DEVICE_FLAG_CONSERVATIVE_RASTERIZATION = 0x1 << 1,
-    DAXA_DEVICE_FLAG_MESH_SHADER_BIT = 0x1 << 2,
-    DAXA_DEVICE_FLAG_SHADER_ATOMIC64 = 0x1 << 3,
-    DAXA_DEVICE_FLAG_IMAGE_ATOMIC64 = 0x1 << 4,
-    DAXA_DEVICE_FLAG_VK_MEMORY_MODEL = 0x1 << 5,
-    DAXA_DEVICE_FLAG_RAY_TRACING = 0x1 << 6,
-    DAXA_DEVICE_FLAG_SHADER_FLOAT16 = 0x1 << 7,
-    DAXA_DEVICE_FLAG_SHADER_INT8 = 0x1 << 8,
-    DAXA_DEVICE_FLAG_ROBUST_BUFFER_ACCESS = 0x1 << 9,
-    DAXA_DEVICE_FLAG_ROBUST_IMAGE_ACCESS = 0x1 << 10,
-    DAXA_DEVICE_FLAG_DYNAMIC_STATE_3 = 0x1 << 11,
-    DAXA_DEVICE_FLAG_SHADER_ATOMIC_FLOAT = 0x1 << 12,
-} daxa_DeviceFlagBits;
-
-/// WARNING: DEPRECATED, use daxa_ImplicitFeatureFlags and daxa_ExplicitFeatureFlags instead!
-typedef uint32_t daxa_DeviceFlags;
-
-/// WARNING: DEPRECATED, use daxa_DeviceInfo2 instead!
-typedef struct
-{
-    int32_t (*selector)(daxa_DeviceProperties const * properties);
-    daxa_DeviceFlags flags;
-    uint32_t max_allowed_images;
-    uint32_t max_allowed_buffers;
-    uint32_t max_allowed_samplers;
-    uint32_t max_allowed_acceleration_structures;
-    daxa_SmallString name;
-} daxa_DeviceInfo;
-
-/// WARNING: DEPRECATED, use daxa_DeviceInfo2 instead!
-static daxa_DeviceInfo const DAXA_DEFAULT_DEVICE_INFO = {
-    .selector = &daxa_default_device_score,
-    .flags = DAXA_DEVICE_FLAG_BUFFER_DEVICE_ADDRESS_CAPTURE_REPLAY_BIT,
-    .max_allowed_images = 10000,
-    .max_allowed_buffers = 10000,
-    .max_allowed_samplers = 400,
-    .max_allowed_acceleration_structures = 10000,
-    .name = DAXA_ZERO_INIT,
-};
 
 typedef struct
 {
@@ -371,26 +332,27 @@ static daxa_DeviceInfo2 const DAXA_DEFAULT_DEVICE_INFO_2 = {
 
 typedef struct
 {
-    daxa_QueueFamily family;
+    daxa_QueueType type;
     daxa_u32 index;
 } daxa_Queue;
 
-static daxa_Queue const DAXA_QUEUE_MAIN = {DAXA_QUEUE_FAMILY_MAIN, 0};
-static daxa_Queue const DAXA_QUEUE_COMPUTE_0 = {DAXA_QUEUE_FAMILY_COMPUTE, 0};
-static daxa_Queue const DAXA_QUEUE_COMPUTE_1 = {DAXA_QUEUE_FAMILY_COMPUTE, 1};
-static daxa_Queue const DAXA_QUEUE_COMPUTE_2 = {DAXA_QUEUE_FAMILY_COMPUTE, 2};
-static daxa_Queue const DAXA_QUEUE_COMPUTE_3 = {DAXA_QUEUE_FAMILY_COMPUTE, 3};
-static daxa_Queue const DAXA_QUEUE_COMPUTE_4 = {DAXA_QUEUE_FAMILY_COMPUTE, 4};
-static daxa_Queue const DAXA_QUEUE_COMPUTE_5 = {DAXA_QUEUE_FAMILY_COMPUTE, 5};
-static daxa_Queue const DAXA_QUEUE_COMPUTE_6 = {DAXA_QUEUE_FAMILY_COMPUTE, 6};
-static daxa_Queue const DAXA_QUEUE_COMPUTE_7 = {DAXA_QUEUE_FAMILY_COMPUTE, 7};
-static daxa_Queue const DAXA_QUEUE_TRANSFER_0 = {DAXA_QUEUE_FAMILY_TRANSFER, 0};
-static daxa_Queue const DAXA_QUEUE_TRANSFER_1 = {DAXA_QUEUE_FAMILY_TRANSFER, 1};
+static daxa_Queue const DAXA_QUEUE_MAIN = {DAXA_QUEUE_TYPE_MAIN, 0};
+static daxa_Queue const DAXA_QUEUE_COMPUTE_0 = {DAXA_QUEUE_TYPE_COMPUTE, 0};
+static daxa_Queue const DAXA_QUEUE_COMPUTE_1 = {DAXA_QUEUE_TYPE_COMPUTE, 1};
+static daxa_Queue const DAXA_QUEUE_COMPUTE_2 = {DAXA_QUEUE_TYPE_COMPUTE, 2};
+static daxa_Queue const DAXA_QUEUE_COMPUTE_3 = {DAXA_QUEUE_TYPE_COMPUTE, 3};
+static daxa_Queue const DAXA_QUEUE_TRANSFER_0 = {DAXA_QUEUE_TYPE_TRANSFER, 0};
+static daxa_Queue const DAXA_QUEUE_TRANSFER_1 = {DAXA_QUEUE_TYPE_TRANSFER, 1};
 
 typedef struct
 {
     daxa_Queue queue;
-    VkPipelineStageFlags wait_stages;
+    uint64_t index;
+} daxa_QueueSubmitIndexPair;
+
+typedef struct
+{
+    daxa_Queue queue;
     daxa_ExecutableCommandList const * command_lists;
     uint64_t command_list_count;
     daxa_BinarySemaphore const * wait_binary_semaphores;
@@ -401,6 +363,8 @@ typedef struct
     uint64_t wait_timeline_semaphore_count;
     daxa_TimelinePair const * signal_timeline_semaphores;
     uint64_t signal_timeline_semaphore_count;
+    daxa_QueueSubmitIndexPair const * wait_queue_submit_indices;
+    uint64_t wait_queue_submit_indices_count;
 } daxa_CommandSubmitInfo;
 
 static daxa_CommandSubmitInfo const DAXA_DEFAULT_COMMAND_SUBMIT_INFO = DAXA_ZERO_INIT;
@@ -417,12 +381,34 @@ static daxa_PresentInfo const DAXA_DEFAULT_PRESENT_INFO = DAXA_ZERO_INIT;
 
 typedef struct
 {
+    daxa_Queue queue;
+    uint64_t queue_submit_index;
+    uint64_t timeout;
+} daxa_WaitOnSubmitInfo;
+
+static daxa_WaitOnSubmitInfo const DAXA_DEFAULT_WAIT_ON_SUBMIT_INFO = {
+    .queue = DAXA_ZERO_INIT,
+    .queue_submit_index = DAXA_ZERO_INIT,
+    .timeout = ~0ull,
+};
+
+typedef struct
+{
     daxa_BufferInfo buffer_info;
     daxa_MemoryBlock * memory_block;
     size_t offset;
 } daxa_MemoryBlockBufferInfo;
 
 static daxa_MemoryBlockBufferInfo const DAXA_DEFAULT_MEMORY_BLOCK_BUFFER_INFO = DAXA_ZERO_INIT;
+
+typedef struct
+{
+    daxa_TlasInfo tlas_info;
+    daxa_MemoryBlock * memory_block;
+    size_t offset;
+} daxa_MemoryBlockTlasInfo;
+
+static daxa_MemoryBlockTlasInfo const DAXA_DEFAULT_MEMORY_BLOCK_TLAS_INFO = DAXA_ZERO_INIT;
 
 typedef struct
 {
@@ -436,7 +422,7 @@ static daxa_MemoryBlockImageInfo const DAXA_DEFAULT_MEMORY_BLOCK_IMAGE_INFO = DA
 typedef struct
 {
     daxa_TlasInfo tlas_info;
-    daxa_BufferId buffer_id;
+    daxa_BufferId buffer;
     uint64_t offset;
 } daxa_BufferTlasInfo;
 
@@ -445,7 +431,7 @@ static daxa_BufferTlasInfo const DAXA_DEFAULT_BUFFER_TLAS_INFO = DAXA_ZERO_INIT;
 typedef struct
 {
     daxa_BlasInfo blas_info;
-    daxa_BufferId buffer_id;
+    daxa_BufferId buffer;
     uint64_t offset;
 } daxa_BufferBlasInfo;
 
@@ -460,28 +446,28 @@ typedef struct
 
 typedef struct
 {
-    daxa_BufferId id;
+    daxa_BufferId buffer;
     daxa_u64 size;
     daxa_Bool8 block_allocated;
 } daxa_BufferIdDeviceMemorySizePair;
 
 typedef struct
 {
-    daxa_ImageId id;
+    daxa_ImageId image;
     daxa_u64 size;
     daxa_Bool8 block_allocated;
 } daxa_ImageIdDeviceMemorySizePair;
 
 typedef struct
 {
-    daxa_TlasId id;
+    daxa_TlasId tlas;
     daxa_u64 size;
     // NOTE: All tlas are aliased allocations into buffers
 } daxa_TlasIdDeviceMemorySizePair;
 
 typedef struct
 {
-    daxa_BlasId id;
+    daxa_BlasId blas;
     daxa_u64 size;
     // NOTE: All tlas are aliased allocations into buffers
 } daxa_BlasIdDeviceMemorySizePair;
@@ -514,6 +500,63 @@ typedef struct
 
 static daxa_DeviceMemoryReport const DAXA_DEFAULT_DEVICE_MEMORY_REPORT_INFO = DAXA_ZERO_INIT;
 
+typedef enum
+{
+    DAXA_MEMORY_TO_IMAGE_COPY_FLAG_NONE = 0x0,
+    DAXA_MEMORY_TO_IMAGE_COPY_FLAG_MEMCPY = 0x1,
+} daxa_MemoryImageCopyFlagBits;
+
+typedef struct
+{
+    daxa_MemoryImageCopyFlagBits flags;
+    uint8_t const * memory_ptr;
+    daxa_ImageId image;
+    daxa_ImageArraySlice image_slice;
+    VkOffset3D image_offset;
+    VkExtent3D image_extent;
+
+} daxa_MemoryToImageCopyInfo;
+
+static daxa_MemoryToImageCopyInfo const DAXA_DEFAULT_MEMORY_TO_IMAGE_COPY_INFO = DAXA_ZERO_INIT;
+
+typedef struct
+{
+    daxa_MemoryImageCopyFlagBits flags;
+    daxa_ImageId image;
+    daxa_ImageArraySlice image_slice;
+    VkOffset3D image_offset;
+    VkExtent3D image_extent;
+    uint8_t * memory_ptr;
+} daxa_ImageToMemoryCopyInfo;
+
+static daxa_ImageToMemoryCopyInfo const DAXA_DEFAULT_IMAGE_TO_MEMORY_COPY_INFO = DAXA_ZERO_INIT;
+
+typedef struct
+{
+    daxa_ImageId image;
+    daxa_ImageLayoutOperation layout_operation;
+} daxa_HostImageLayoutOperationInfo;
+
+static daxa_HostImageLayoutOperationInfo const DAXA_DEFAULT_HOST_IMAGE_LAYOUT_OPERATION_INFO = DAXA_ZERO_INIT;
+
+typedef struct
+{
+    daxa_BufferId buffer;
+    daxa_u64 offset;
+} daxa_BufferOffsetPair;
+
+static daxa_BufferOffsetPair const DAXA_DEFAULT_BUFFER_OFFSET_PAIR_INFO = DAXA_ZERO_INIT;
+
+typedef struct
+{
+    daxa_NativeWindowInfo native_window_info;
+    // Leave this span completely empty for daxa to select a surface format.
+    // For each preferred format, leave the color space empty for daxa to select a color space.
+    daxa_SpanToConst(VkSurfaceFormatKHR) preferred_formats;
+} daxa_ChooseSwapchainSurfaceFormatInfo;
+
+static daxa_ChooseSwapchainSurfaceFormatInfo const DAXA_DEFAULT_CHOOSE_SWAPCHAIN_SURFACE_INFO = DAXA_ZERO_INIT;
+
 DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
 daxa_dvc_device_memory_report(daxa_Device device, daxa_DeviceMemoryReport * report);
 DAXA_EXPORT DAXA_NO_DISCARD VkMemoryRequirements
@@ -534,6 +577,8 @@ daxa_dvc_create_image(daxa_Device device, daxa_ImageInfo const * info, daxa_Imag
 DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
 daxa_dvc_create_buffer_from_memory_block(daxa_Device device, daxa_MemoryBlockBufferInfo const * info, daxa_BufferId * out_id);
 DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
+daxa_dvc_create_tlas_from_memory_block(daxa_Device device, daxa_MemoryBlockTlasInfo const * info, daxa_TlasId * out_id);
+DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
 daxa_dvc_create_image_from_block(daxa_Device device, daxa_MemoryBlockImageInfo const * info, daxa_ImageId * out_id);
 DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
 daxa_dvc_create_image_view(daxa_Device device, daxa_ImageViewInfo const * info, daxa_ImageViewId * out_id);
@@ -549,11 +594,24 @@ DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
 daxa_dvc_create_blas_from_buffer(daxa_Device device, daxa_BufferBlasInfo const * info, daxa_BlasId * out_id);
 
 DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
+daxa_dvc_inc_refcnt_buffer(daxa_Device device, daxa_BufferId buffer);
+DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
+daxa_dvc_inc_refcnt_image(daxa_Device device, daxa_ImageId image);
+DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
+daxa_dvc_inc_refcnt_image_view(daxa_Device device, daxa_ImageViewId image_view);
+DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
+daxa_dvc_inc_refcnt_sampler(daxa_Device device, daxa_SamplerId sampler);
+DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
+daxa_dvc_inc_refcnt_tlas(daxa_Device device, daxa_TlasId tlas);
+DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
+daxa_dvc_inc_refcnt_blas(daxa_Device device, daxa_BlasId blas);
+
+DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
 daxa_dvc_destroy_buffer(daxa_Device device, daxa_BufferId buffer);
 DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
 daxa_dvc_destroy_image(daxa_Device device, daxa_ImageId image);
 DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
-daxa_dvc_destroy_image_view(daxa_Device device, daxa_ImageViewId id);
+daxa_dvc_destroy_image_view(daxa_Device device, daxa_ImageViewId image_view);
 DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
 daxa_dvc_destroy_sampler(daxa_Device device, daxa_SamplerId sampler);
 DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
@@ -566,7 +624,7 @@ daxa_dvc_info_buffer(daxa_Device device, daxa_BufferId buffer, daxa_BufferInfo *
 DAXA_EXPORT daxa_Result
 daxa_dvc_info_image(daxa_Device device, daxa_ImageId image, daxa_ImageInfo * out_info);
 DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
-daxa_dvc_info_image_view(daxa_Device device, daxa_ImageViewId id, daxa_ImageViewInfo * out_info);
+daxa_dvc_info_image_view(daxa_Device device, daxa_ImageViewId image_view, daxa_ImageViewInfo * out_info);
 DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
 daxa_dvc_info_sampler(daxa_Device device, daxa_SamplerId sampler, daxa_SamplerInfo * out_info);
 DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
@@ -592,7 +650,7 @@ daxa_dvc_get_vk_buffer(daxa_Device device, daxa_BufferId buffer, VkBuffer * out_
 DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
 daxa_dvc_get_vk_image(daxa_Device device, daxa_ImageId image, VkImage * out_vk_handle);
 DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
-daxa_dvc_get_vk_image_view(daxa_Device device, daxa_ImageViewId id, VkImageView * out_vk_handle);
+daxa_dvc_get_vk_image_view(daxa_Device device, daxa_ImageViewId image_view, VkImageView * out_vk_handle);
 DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
 daxa_dvc_get_vk_sampler(daxa_Device device, daxa_SamplerId sampler, VkSampler * out_vk_handle);
 DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
@@ -608,6 +666,9 @@ DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
 daxa_dvc_tlas_device_address(daxa_Device device, daxa_TlasId tlas, daxa_DeviceAddress * out_addr);
 DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
 daxa_dvc_blas_device_address(daxa_Device device, daxa_BlasId blas, daxa_DeviceAddress * out_addr);
+
+DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
+daxa_dvc_buffer_device_address_to_buffer(daxa_Device device, daxa_DeviceAddress address, daxa_BufferOffsetPair * out_buffer_offset_pair);
 
 DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
 daxa_dvc_create_raster_pipeline(daxa_Device device, daxa_RasterPipelineInfo const * info, daxa_RasterPipeline * out_pipeline);
@@ -630,28 +691,52 @@ daxa_dvc_create_event(daxa_Device device, daxa_EventInfo const * info, daxa_Even
 DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
 daxa_dvc_create_timeline_query_pool(daxa_Device device, daxa_TimelineQueryPoolInfo const * info, daxa_TimelineQueryPool * out_timeline_query_pool);
 
+DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
+daxa_dvc_copy_memory_to_image(daxa_Device device, daxa_MemoryToImageCopyInfo const * info);
+DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
+daxa_dvc_copy_image_to_memory(daxa_Device device, daxa_ImageToMemoryCopyInfo const * info);
+
+DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
+daxa_dvc_image_layout_operation(daxa_Device device, daxa_HostImageLayoutOperationInfo const * info);
+
 DAXA_EXPORT VkDevice
 daxa_dvc_get_vk_device(daxa_Device device);
 DAXA_EXPORT VkPhysicalDevice
 daxa_dvc_get_vk_physical_device(daxa_Device device);
 DAXA_EXPORT daxa_Result
-daxa_dvc_get_vk_queue(daxa_Device self, daxa_Queue queue, VkQueue* vk_queue, uint32_t* vk_queue_family_index);
+daxa_dvc_get_vk_queue(daxa_Device self, daxa_Queue queue, VkQueue* vk_queue, uint32_t* vk_queue_type_index);
 
 DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
 daxa_dvc_queue_wait_idle(daxa_Device device, daxa_Queue queue);
 DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
-daxa_dvc_queue_count(daxa_Device device, daxa_QueueFamily queue_family, daxa_u32 * out_value);
+daxa_dvc_queue_count(daxa_Device device, daxa_QueueType queue_type, daxa_u32 * out_value);
 
 DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
 daxa_dvc_wait_idle(daxa_Device device);
 DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
-daxa_dvc_submit(daxa_Device device, daxa_CommandSubmitInfo const * info);
+daxa_dvc_submit_commands(daxa_Device device, daxa_CommandSubmitInfo const * info, daxa_u64 * out_submit_index);
 DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
-daxa_dvc_present(daxa_Device device, daxa_PresentInfo const * info);
+daxa_dvc_latest_submit_index(daxa_Device device, daxa_u64 * submit_index);
+DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
+daxa_dvc_oldest_pending_submit_index(daxa_Device device, daxa_u64 * submit_index);
+DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
+daxa_dvc_latest_queue_submit_index(daxa_Device device, daxa_Queue queue, daxa_u64 * submit_index);
+DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
+daxa_dvc_wait_on_submit(daxa_Device device, daxa_WaitOnSubmitInfo const * info);
+DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
+daxa_dvc_present_frame(daxa_Device device, daxa_PresentInfo const * info);
 DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
 daxa_dvc_collect_garbage(daxa_Device device);
+
 DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
-daxa_dvc_get_calibrated_timestamps(daxa_Device device, uint64_t * out_device_timestamp, uint64_t * out_host_timestamp, uint64_t * out_max_deviation);
+daxa_dvc_report_supported_present_modes(daxa_Device device, daxa_NativeWindowInfo native_window, uint32_t * out_present_mode_count, VkPresentModeKHR * out_present_modes);
+DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
+daxa_dvc_report_supported_image_formats(daxa_Device device, daxa_NativeWindowInfo native_window, uint32_t * out_format_count, VkSurfaceFormatKHR * out_formats);
+DAXA_EXPORT DAXA_NO_DISCARD daxa_Result
+daxa_dvc_choose_swapchain_surface_format(
+    daxa_Device device,
+    daxa_ChooseSwapchainSurfaceFormatInfo const * info,
+    VkSurfaceFormatKHR * out_format);
 
 DAXA_EXPORT daxa_DeviceInfo2 const *
 daxa_dvc_info(daxa_Device device);

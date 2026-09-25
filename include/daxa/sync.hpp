@@ -7,25 +7,30 @@ namespace daxa
 {
     struct Device;
 
-    struct MemoryBarrierInfo
+    struct BarrierInfo
     {
         Access src_access = AccessConsts::NONE;
         Access dst_access = AccessConsts::NONE;
     };
 
-    [[nodiscard]] auto to_string(MemoryBarrierInfo const & info) -> std::string;
+    [[nodiscard]] DAXA_EXPORT_CXX auto to_string(BarrierInfo const & info) -> std::string;
 
-    struct ImageMemoryBarrierInfo
+    enum struct ImageLayoutOperation
+    {
+        NONE = 0,
+        TO_GENERAL = 1,
+        TO_PRESENT_SRC = 2,
+    };
+
+    struct ImageBarrierInfo
     {
         Access src_access = AccessConsts::NONE;
         Access dst_access = AccessConsts::NONE;
-        ImageLayout src_layout = ImageLayout::UNDEFINED;
-        ImageLayout dst_layout = ImageLayout::UNDEFINED;
-        ImageMipArraySlice image_slice = {};
-        ImageId image_id = {};
+        ImageId image = {};
+        ImageLayoutOperation layout_operation = {};
     };
 
-    [[nodiscard]] DAXA_EXPORT_CXX auto to_string(ImageMemoryBarrierInfo const & info) -> std::string;
+    [[nodiscard]] DAXA_EXPORT_CXX auto to_string(ImageBarrierInfo const & info) -> std::string;
 
     struct BinarySemaphoreInfo
     {
@@ -66,6 +71,7 @@ namespace daxa
         [[nodiscard]] auto value() const -> u64;
         void set_value(u64 value);
         [[nodiscard]] auto wait_for_value(u64 value, u64 timeout_nanos = ~0ull) -> bool;
+        void signal_value(u64 value);
 
       protected:
         template <typename T, typename H_T>
@@ -97,8 +103,8 @@ namespace daxa
 
     struct EventSignalInfo
     {
-        daxa::Span<MemoryBarrierInfo const> memory_barriers = {};
-        daxa::Span<ImageMemoryBarrierInfo const> image_barriers = {};
+        daxa::Span<BarrierInfo const> barriers = {};
+        daxa::Span<ImageBarrierInfo const> image_barriers = {};
         Event & event;
     };
 

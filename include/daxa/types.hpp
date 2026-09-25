@@ -132,11 +132,13 @@ namespace daxa
 
         [[nodiscard]] auto value() -> T &
         {
+            DAXA_DBG_ASSERT_TRUE_M(has_value(), "ATTEMPTED TO READ VALUE OF NULL OPTIONAL");
             return this->m_value;
         }
 
         [[nodiscard]] auto value() const -> T const &
         {
+            DAXA_DBG_ASSERT_TRUE_M(has_value(), "ATTEMPTED TO READ VALUE OF NULL OPTIONAL");
             return this->m_value;
         }
 
@@ -334,30 +336,32 @@ namespace daxa
         using FixedList::FixedList;
         constexpr SmallString(char const * c_str)
         {
-            while (c_str != nullptr && *c_str != 0)
+            while (c_str != nullptr && *c_str != 0 && ((this->m_size + 1) < (this->capacity() - 1)))
             {
-                if (this->m_size >= this->capacity())
-                {
-                    break;
-                }
                 this->m_data[this->m_size++] = *(c_str++);
             }
+            this->m_data[this->m_size] = '\0';
+            this->m_size += 1;
         }
         constexpr SmallString(std::string_view sw)
         {
-            this->m_size = static_cast<FixedListSizeT>(std::min(static_cast<FixedListSizeT>(sw.size()), this->capacity()));
+            this->m_size = std::min(static_cast<FixedListSizeT>(sw.size()), static_cast<FixedListSizeT>(this->capacity() - 1ull));
             for (FixedListSizeT i = 0; i < this->m_size; ++i)
             {
                 this->m_data[i] = sw[i];
             }
+            this->m_data[this->m_size] = '\0';
+            this->m_size += 1;
         }
         constexpr SmallString(std::string const & stl_str)
         {
-            this->m_size = static_cast<FixedListSizeT>(std::min(static_cast<FixedListSizeT>(stl_str.size()), this->capacity()));
+            this->m_size = std::min(static_cast<FixedListSizeT>(stl_str.size()), static_cast<FixedListSizeT>(this->capacity() - 1ull));
             for (FixedListSizeT i = 0; i < this->m_size; ++i)
             {
                 this->m_data[i] = stl_str[i];
             }
+            this->m_data[this->m_size] = '\0';
+            this->m_size += 1;
         }
         SmallString(SmallString const & other) = default;
         auto operator=(SmallString const & other) -> SmallString & = default;
@@ -365,18 +369,9 @@ namespace daxa
         {
             return {this->m_data.data(), static_cast<usize>(this->m_size)};
         }
-        [[nodiscard]] auto c_str() const -> std::array<char, DAXA_SMALL_STRING_CAPACITY + 1>
+        [[nodiscard]] auto c_str() const -> char const *
         {
-            std::array<char, DAXA_SMALL_STRING_CAPACITY + 1> ret;
-            for (u8 i = 0; i < this->m_size; ++i)
-            {
-                ret[i] = this->m_data[i];
-            }
-            for (u8 i = this->m_size; i < DAXA_SMALL_STRING_CAPACITY + 1; ++i)
-            {
-                ret[i] = 0;
-            }
-            return ret;
+            return data();
         }
     };
     static_assert(sizeof(SmallString) == 64);
@@ -1198,7 +1193,38 @@ namespace daxa
         MAX_ENUM = 0x7fffffff,
     };
 
+    enum struct FormatFlags : u32
+    {
+        NONE       = 0,
+        DEPTH      = 1 << 0,
+        STENCIL    = 1 << 1,
+        COMPRESSED = 1 << 2,
+        SIGNED     = 1 << 3,  // SNORM, SINT, SFLOAT
+        FLOAT      = 1 << 4,  // SFLOAT
+        NORM       = 1 << 5,  // UNORM, SNORM
+        SRGB       = 1 << 6,
+        SCALED     = 1 << 7,  // USCALED, SSCALED
+    };
+    [[nodiscard]] inline constexpr auto operator|(FormatFlags a, FormatFlags b) -> FormatFlags { return static_cast<FormatFlags>(static_cast<u32>(a) | static_cast<u32>(b)); }
+    [[nodiscard]] inline constexpr auto operator&(FormatFlags a, FormatFlags b) -> FormatFlags { return static_cast<FormatFlags>(static_cast<u32>(a) & static_cast<u32>(b)); }
+    inline constexpr auto operator|=(FormatFlags & a, FormatFlags b) -> FormatFlags & { a = a | b; return a; }
+
+    struct FormatInfo
+    {
+        u8 channel_count = {};
+        u8 channel_bits = {};  // bits per channel (0 if channels differ or block-compressed)
+        u8 element_bits = {};  // total bits per texel (0 if block-compressed)
+        FormatFlags flags = {};
+    };
+
     [[nodiscard]] DAXA_EXPORT_CXX auto to_string(Format format) -> std::string_view;
+
+    [[nodiscard]] DAXA_EXPORT_CXX auto format_info(Format format) -> FormatInfo;
+    [[nodiscard]] DAXA_EXPORT_CXX auto is_format_depth(Format format) -> bool;
+    [[nodiscard]] DAXA_EXPORT_CXX auto is_format_stencil(Format format) -> bool;
+    [[nodiscard]] DAXA_EXPORT_CXX auto is_format_depth_stencil(Format format) -> bool;
+    [[nodiscard]] DAXA_EXPORT_CXX auto is_format_float(Format format) -> bool;
+    [[nodiscard]] DAXA_EXPORT_CXX auto is_format_int(Format format) -> bool;
 
     template <typename Properties>
     struct Flags final
@@ -1300,6 +1326,7 @@ namespace daxa
         static inline constexpr ImageUsageFlags TRANSIENT_ATTACHMENT = {0x00000040};
         static inline constexpr ImageUsageFlags FRAGMENT_DENSITY_MAP = {0x00000200};
         static inline constexpr ImageUsageFlags FRAGMENT_SHADING_RATE_ATTACHMENT = {0x00000100};
+        static inline constexpr ImageUsageFlags HOST_TRANSFER = {0x00400000};
     };
 
     [[nodiscard]] DAXA_EXPORT_CXX auto to_string(ImageUsageFlags const &) -> std::string;
@@ -1312,13 +1339,11 @@ namespace daxa
     struct MemoryFlagBits
     {
         static inline constexpr MemoryFlags NONE = {0x00000000};
-        static inline constexpr MemoryFlags DEDICATED_MEMORY = {0x00000001};
-        static inline constexpr MemoryFlags CAN_ALIAS = {0x00000200};
         static inline constexpr MemoryFlags HOST_ACCESS_SEQUENTIAL_WRITE = {0x00000400};
         static inline constexpr MemoryFlags HOST_ACCESS_RANDOM = {0x00000800};
-        static inline constexpr MemoryFlags STRATEGY_MIN_MEMORY = {0x00010000};
-        static inline constexpr MemoryFlags STRATEGY_MIN_TIME = {0x00020000};
     };
+
+    [[nodiscard]] DAXA_EXPORT_CXX auto to_string(MemoryFlags flags) -> std::string_view;
 
     enum struct ColorSpace
     {
@@ -1341,16 +1366,12 @@ namespace daxa
         MAX_ENUM = 0x7fffffff,
     };
 
-    [[nodiscard]] auto to_string(ColorSpace color_space) -> std::string_view;
+    [[nodiscard]] DAXA_EXPORT_CXX auto to_string(ColorSpace color_space) -> std::string_view;
 
     enum struct ImageLayout
     {
         UNDEFINED = 0,
         GENERAL = 1,
-        TRANSFER_SRC_OPTIMAL = 6,
-        TRANSFER_DST_OPTIMAL = 7,
-        READ_ONLY_OPTIMAL = 1000314000,
-        ATTACHMENT_OPTIMAL = 1000314001,
         PRESENT_SRC = 1000001002,
         MAX_ENUM = 0x7fffffff,
     };
@@ -1481,7 +1502,7 @@ namespace daxa
         static inline constexpr PipelineStageFlags NONE = {0x00000000ull};
 
         static inline constexpr PipelineStageFlags TOP_OF_PIPE = {0x00000001ull};
-        static inline constexpr PipelineStageFlags DRAW_INDIRECT = {0x00000002ull};
+        static inline constexpr PipelineStageFlags INDIRECT_COMMAND_READ = {0x00000002ull};
         static inline constexpr PipelineStageFlags VERTEX_SHADER = {0x00000008ull};
         static inline constexpr PipelineStageFlags TESSELLATION_CONTROL_SHADER = {0x00000010ull};
         static inline constexpr PipelineStageFlags TESSELLATION_EVALUATION_SHADER = {0x00000020ull};
@@ -1494,7 +1515,7 @@ namespace daxa
         static inline constexpr PipelineStageFlags TRANSFER = {0x00001000ull};
         static inline constexpr PipelineStageFlags BOTTOM_OF_PIPE = {0x00002000ull};
         static inline constexpr PipelineStageFlags HOST = {0x00004000ull};
-        static inline constexpr PipelineStageFlags ALL_GRAPHICS = {0x00008000ull};
+        static inline constexpr PipelineStageFlags ALL_RASTER = {0x00008000ull};
         static inline constexpr PipelineStageFlags ALL_COMMANDS = {0x00010000ull};
         static inline constexpr PipelineStageFlags COPY = {0x100000000ull};
         static inline constexpr PipelineStageFlags RESOLVE = {0x200000000ull};
@@ -1528,7 +1549,7 @@ namespace daxa
         static inline constexpr Access NONE = {.stages = PipelineStageFlagBits::NONE, .type = AccessTypeFlagBits::NONE};
 
         static inline constexpr Access TOP_OF_PIPE_READ = {.stages = PipelineStageFlagBits::TOP_OF_PIPE, .type = AccessTypeFlagBits::READ};
-        static inline constexpr Access DRAW_INDIRECT_READ = {.stages = PipelineStageFlagBits::DRAW_INDIRECT, .type = AccessTypeFlagBits::READ};
+        static inline constexpr Access INDIRECT_COMMAND_READ = {.stages = PipelineStageFlagBits::INDIRECT_COMMAND_READ, .type = AccessTypeFlagBits::READ};
         static inline constexpr Access VERTEX_SHADER_READ = {.stages = PipelineStageFlagBits::VERTEX_SHADER, .type = AccessTypeFlagBits::READ};
         static inline constexpr Access TESSELLATION_CONTROL_SHADER_READ = {.stages = PipelineStageFlagBits::TESSELLATION_CONTROL_SHADER, .type = AccessTypeFlagBits::READ};
         static inline constexpr Access TESSELLATION_EVALUATION_SHADER_READ = {.stages = PipelineStageFlagBits::TESSELLATION_EVALUATION_SHADER, .type = AccessTypeFlagBits::READ};
@@ -1541,7 +1562,7 @@ namespace daxa
         static inline constexpr Access TRANSFER_READ = {.stages = PipelineStageFlagBits::TRANSFER, .type = AccessTypeFlagBits::READ};
         static inline constexpr Access BOTTOM_OF_PIPE_READ = {.stages = PipelineStageFlagBits::BOTTOM_OF_PIPE, .type = AccessTypeFlagBits::READ};
         static inline constexpr Access HOST_READ = {.stages = PipelineStageFlagBits::HOST, .type = AccessTypeFlagBits::READ};
-        static inline constexpr Access ALL_GRAPHICS_READ = {.stages = PipelineStageFlagBits::ALL_GRAPHICS, .type = AccessTypeFlagBits::READ};
+        static inline constexpr Access ALL_RASTER_READ = {.stages = PipelineStageFlagBits::ALL_RASTER, .type = AccessTypeFlagBits::READ};
         static inline constexpr Access READ = {.stages = PipelineStageFlagBits::ALL_COMMANDS, .type = AccessTypeFlagBits::READ};
         static inline constexpr Access COPY_READ = {.stages = PipelineStageFlagBits::COPY, .type = AccessTypeFlagBits::READ};
         static inline constexpr Access RESOLVE_READ = {.stages = PipelineStageFlagBits::RESOLVE, .type = AccessTypeFlagBits::READ};
@@ -1555,7 +1576,6 @@ namespace daxa
         static inline constexpr Access RAY_TRACING_SHADER_READ = {.stages = PipelineStageFlagBits::RAY_TRACING_SHADER, .type = AccessTypeFlagBits::READ};
 
         static inline constexpr Access TOP_OF_PIPE_WRITE = {.stages = PipelineStageFlagBits::TOP_OF_PIPE, .type = AccessTypeFlagBits::WRITE};
-        static inline constexpr Access DRAW_INDIRECT_WRITE = {.stages = PipelineStageFlagBits::DRAW_INDIRECT, .type = AccessTypeFlagBits::WRITE};
         static inline constexpr Access VERTEX_SHADER_WRITE = {.stages = PipelineStageFlagBits::VERTEX_SHADER, .type = AccessTypeFlagBits::WRITE};
         static inline constexpr Access TESSELLATION_CONTROL_SHADER_WRITE = {.stages = PipelineStageFlagBits::TESSELLATION_CONTROL_SHADER, .type = AccessTypeFlagBits::WRITE};
         static inline constexpr Access TESSELLATION_EVALUATION_SHADER_WRITE = {.stages = PipelineStageFlagBits::TESSELLATION_EVALUATION_SHADER, .type = AccessTypeFlagBits::WRITE};
@@ -1568,7 +1588,7 @@ namespace daxa
         static inline constexpr Access TRANSFER_WRITE = {.stages = PipelineStageFlagBits::TRANSFER, .type = AccessTypeFlagBits::WRITE};
         static inline constexpr Access BOTTOM_OF_PIPE_WRITE = {.stages = PipelineStageFlagBits::BOTTOM_OF_PIPE, .type = AccessTypeFlagBits::WRITE};
         static inline constexpr Access HOST_WRITE = {.stages = PipelineStageFlagBits::HOST, .type = AccessTypeFlagBits::WRITE};
-        static inline constexpr Access ALL_GRAPHICS_WRITE = {.stages = PipelineStageFlagBits::ALL_GRAPHICS, .type = AccessTypeFlagBits::WRITE};
+        static inline constexpr Access ALL_RASTER_WRITE = {.stages = PipelineStageFlagBits::ALL_RASTER, .type = AccessTypeFlagBits::WRITE};
         static inline constexpr Access WRITE = {.stages = PipelineStageFlagBits::ALL_COMMANDS, .type = AccessTypeFlagBits::WRITE};
         static inline constexpr Access COPY_WRITE = {.stages = PipelineStageFlagBits::COPY, .type = AccessTypeFlagBits::WRITE};
         static inline constexpr Access RESOLVE_WRITE = {.stages = PipelineStageFlagBits::RESOLVE, .type = AccessTypeFlagBits::WRITE};
@@ -1582,7 +1602,6 @@ namespace daxa
         static inline constexpr Access RAY_TRACING_SHADER_WRITE = {.stages = PipelineStageFlagBits::RAY_TRACING_SHADER, .type = AccessTypeFlagBits::WRITE};
 
         static inline constexpr Access TOP_OF_PIPE_READ_WRITE = {.stages = PipelineStageFlagBits::TOP_OF_PIPE, .type = AccessTypeFlagBits::READ_WRITE};
-        static inline constexpr Access DRAW_INDIRECT_READ_WRITE = {.stages = PipelineStageFlagBits::DRAW_INDIRECT, .type = AccessTypeFlagBits::READ_WRITE};
         static inline constexpr Access VERTEX_SHADER_READ_WRITE = {.stages = PipelineStageFlagBits::VERTEX_SHADER, .type = AccessTypeFlagBits::READ_WRITE};
         static inline constexpr Access TESSELLATION_CONTROL_SHADER_READ_WRITE = {.stages = PipelineStageFlagBits::TESSELLATION_CONTROL_SHADER, .type = AccessTypeFlagBits::READ_WRITE};
         static inline constexpr Access TESSELLATION_EVALUATION_SHADER_READ_WRITE = {.stages = PipelineStageFlagBits::TESSELLATION_EVALUATION_SHADER, .type = AccessTypeFlagBits::READ_WRITE};
@@ -1595,7 +1614,7 @@ namespace daxa
         static inline constexpr Access TRANSFER_READ_WRITE = {.stages = PipelineStageFlagBits::TRANSFER, .type = AccessTypeFlagBits::READ_WRITE};
         static inline constexpr Access BOTTOM_OF_PIPE_READ_WRITE = {.stages = PipelineStageFlagBits::BOTTOM_OF_PIPE, .type = AccessTypeFlagBits::READ_WRITE};
         static inline constexpr Access HOST_READ_WRITE = {.stages = PipelineStageFlagBits::HOST, .type = AccessTypeFlagBits::READ_WRITE};
-        static inline constexpr Access ALL_GRAPHICS_READ_WRITE = {.stages = PipelineStageFlagBits::ALL_GRAPHICS, .type = AccessTypeFlagBits::READ_WRITE};
+        static inline constexpr Access ALL_RASTER_READ_WRITE = {.stages = PipelineStageFlagBits::ALL_RASTER, .type = AccessTypeFlagBits::READ_WRITE};
         static inline constexpr Access READ_WRITE = {.stages = PipelineStageFlagBits::ALL_COMMANDS, .type = AccessTypeFlagBits::READ_WRITE};
         static inline constexpr Access COPY_READ_WRITE = {.stages = PipelineStageFlagBits::COPY, .type = AccessTypeFlagBits::READ_WRITE};
         static inline constexpr Access RESOLVE_READ_WRITE = {.stages = PipelineStageFlagBits::RESOLVE, .type = AccessTypeFlagBits::READ_WRITE};
@@ -1881,12 +1900,21 @@ namespace daxa
         MAX_ENUM = 0x7fffffff,
     };
 
-    enum struct QueueFamily
+    enum struct QueueType
     {
         MAIN,
         COMPUTE,
-        TRANSFER
+        TRANSFER,
+        MAX_ENUM = 0x7fffffff,
     };
 
-    [[nodiscard]] DAXA_EXPORT_CXX auto to_string(QueueFamily family) -> std::string_view;
+    [[nodiscard]] DAXA_EXPORT_CXX auto to_string(QueueType type) -> std::string_view;
+    
+    template <typename T>
+    auto constexpr align_up(T value, T align) -> T
+    {
+        if (value == 0 || align == 0)
+            return 0;
+        return (value + align - static_cast<T>(1)) / align * align;
+    }
 } // namespace daxa

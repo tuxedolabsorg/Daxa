@@ -2,7 +2,6 @@
 #define __DAXA_GPU_RESOURCES_H__
 
 #include "types.h"
-#include <vma/vk_mem_alloc.h>
 
 #include <daxa/c/types.h>
 
@@ -12,22 +11,22 @@ DAXA_EXPORT daxa_ImageViewId
 daxa_default_view(daxa_ImageId image);
 
 DAXA_EXPORT uint32_t
-daxa_index_of_buffer(daxa_BufferId id);
+daxa_index_of_buffer(daxa_BufferId buffer);
 DAXA_EXPORT uint32_t
-daxa_index_of_image(daxa_ImageId id);
+daxa_index_of_image(daxa_ImageId image);
 DAXA_EXPORT uint32_t
-daxa_index_of_image_view(daxa_ImageViewId id);
+daxa_index_of_image_view(daxa_ImageViewId image_view);
 DAXA_EXPORT uint32_t
-daxa_index_of_sampler(daxa_SamplerId id);
+daxa_index_of_sampler(daxa_SamplerId sampler);
 
 DAXA_EXPORT uint64_t
-daxa_version_of_buffer(daxa_BufferId id);
+daxa_version_of_buffer(daxa_BufferId buffer);
 DAXA_EXPORT uint64_t
-daxa_version_of_image(daxa_ImageId id);
+daxa_version_of_image(daxa_ImageId image);
 DAXA_EXPORT uint64_t
-daxa_version_of_image_view(daxa_ImageViewId id);
+daxa_version_of_image_view(daxa_ImageViewId image_view);
 DAXA_EXPORT uint64_t
-daxa_version_of_sampler(daxa_SamplerId id);
+daxa_version_of_sampler(daxa_SamplerId sampler);
 typedef struct
 {
     uint64_t address;
@@ -36,9 +35,8 @@ typedef struct
 typedef struct
 {
     size_t size;
-    size_t alignment;
     // Ignored when allocating with a memory block.
-    daxa_MemoryFlags allocate_info;
+    daxa_MemoryFlags memory_flags;
     daxa_SmallString name;
 } daxa_BufferInfo;
 
@@ -60,12 +58,7 @@ static daxa_ImageUsageFlags const DAXA_IMAGE_USE_FLAG_DEPTH_STENCIL_ATTACHMENT =
 static daxa_ImageUsageFlags const DAXA_IMAGE_USE_FLAG_TRANSIENT_ATTACHMENT = 0x00000040;
 static daxa_ImageUsageFlags const DAXA_IMAGE_USE_FLAG_FRAGMENT_DENSITY_MAP = 0x00000200;
 static daxa_ImageUsageFlags const DAXA_IMAGE_USE_FLAG_FRAGMENT_SHADING_RATE_ATTACHMENT = 0x00000100;
-
-typedef enum
-{
-    DAXA_SHARING_MODE_EXCLUSIVE,
-    DAXA_SHARING_MODE_CONCURRENT,
-} daxa_SharingMode;
+static daxa_ImageUsageFlags const DAXA_IMAGE_USE_FLAG_HOST_TRANSFER = 0x00400000;
 
 typedef struct
 {
@@ -77,9 +70,8 @@ typedef struct
     uint32_t array_layer_count;
     uint32_t sample_count;
     daxa_ImageUsageFlags usage;
-    daxa_SharingMode sharing_mode;
     // Ignored when allocating with a memory block.
-    daxa_MemoryFlags allocate_info;
+    daxa_MemoryFlags memory_flags;
     daxa_SmallString name;
 } daxa_ImageInfo;
 
@@ -115,8 +107,7 @@ typedef struct
 
 static daxa_BufferInfo const DAXA_DEFAULT_BUFFER_INFO = {
     .size = 0,
-    .alignment = 0,
-    .allocate_info = DAXA_MEMORY_FLAG_NONE,
+    .memory_flags = DAXA_MEMORY_FLAG_NONE,
     .name = {.data = DAXA_ZERO_INIT, .size = 0},
 };
 static daxa_ImageInfo const DAXA_DEFAULT_IMAGE_INFO = {
@@ -128,13 +119,14 @@ static daxa_ImageInfo const DAXA_DEFAULT_IMAGE_INFO = {
     .array_layer_count = 1,
     .sample_count = 1,
     .usage = 0,
-    .sharing_mode = DAXA_SHARING_MODE_EXCLUSIVE,
-    .allocate_info = DAXA_MEMORY_FLAG_NONE,
+    .memory_flags = DAXA_MEMORY_FLAG_NONE,
     .name = {.data = DAXA_ZERO_INIT, .size = 0},
 };
 static daxa_ImageViewInfo const DAXA_DEFAULT_IMAGE_VIEW_INFO = {
     .type = VK_IMAGE_VIEW_TYPE_2D,
     .format = VK_FORMAT_R8G8B8A8_SRGB,
+    .image = DAXA_ZERO_INIT,
+    .slice = DAXA_ZERO_INIT,
     .name = {.data = DAXA_ZERO_INIT, .size = 0},
 };
 static daxa_SamplerInfo const DAXA_DEFAULT_SAMPLER_INFO = {

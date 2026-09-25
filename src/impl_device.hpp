@@ -46,15 +46,10 @@ struct daxa_ImplDevice final : public ImplHandle
     PFN_vkCmdBeginDebugUtilsLabelEXT vkCmdBeginDebugUtilsLabelEXT = {};
     PFN_vkCmdEndDebugUtilsLabelEXT vkCmdEndDebugUtilsLabelEXT = {};
 
-    // Null when calibrated timestamps are unsupported or the device/host time domains are not calibrateable.
-    PFN_vkGetCalibratedTimestampsKHR vkGetCalibratedTimestampsKHR = {};
-    VkTimeDomainKHR calibrated_host_time_domain = {};
-
     // Mesh shader:
     PFN_vkCmdDrawMeshTasksEXT vkCmdDrawMeshTasksEXT = {};
     PFN_vkCmdDrawMeshTasksIndirectEXT vkCmdDrawMeshTasksIndirectEXT = {};
     PFN_vkCmdDrawMeshTasksIndirectCountEXT vkCmdDrawMeshTasksIndirectCountEXT = {};
-    VkPhysicalDeviceMeshShaderPropertiesEXT mesh_shader_properties = {};
 
     // Ray tracing:
     PFN_vkGetAccelerationStructureBuildSizesKHR vkGetAccelerationStructureBuildSizesKHR = {};
@@ -67,6 +62,11 @@ struct daxa_ImplDevice final : public ImplHandle
     PFN_vkGetRayTracingShaderGroupHandlesKHR vkGetRayTracingShaderGroupHandlesKHR = {};
     PFN_vkCmdTraceRaysKHR vkCmdTraceRaysKHR = {};
     PFN_vkCmdTraceRaysIndirectKHR vkCmdTraceRaysIndirectKHR = {};
+
+    // Host image copy:
+    PFN_vkTransitionImageLayoutEXT vkTransitionImageLayoutEXT = {};
+    PFN_vkCopyMemoryToImageEXT vkCopyMemoryToImageEXT = {};
+    PFN_vkCopyImageToMemoryEXT vkCopyImageToMemoryEXT = {};
 
     VkBuffer buffer_device_address_buffer = {};
     u64 * buffer_device_address_buffer_host_ptr = {};
@@ -85,8 +85,8 @@ struct daxa_ImplDevice final : public ImplHandle
     VmaAllocation vk_null_image_vma_allocation = {};
 
     // Command Buffer/Pool recycling:
-    // Index with daxa_QueueFamily.
-    std::array<CommandPoolPool, 3> command_pool_pools = {};
+    // Index with daxa_QueueType.
+    ImplTransientCommandArenas commands = {};
 
     // Gpu Shader Resource Object table:
     GPUShaderResourceTable gpu_sro_table = {};
@@ -98,7 +98,7 @@ struct daxa_ImplDevice final : public ImplHandle
     // If the zombies global submit index is smaller then global index of all submits currently in flight (on all queues), we can safely clean the resource up.
     std::atomic_uint64_t global_submit_timeline = {};
     std::recursive_mutex zombies_mtx = {};
-    std::deque<std::pair<u64, CommandRecorderZombie>> command_list_zombies = {};
+    std::deque<std::pair<u64, ImplTransientCommandArena*>> command_zombies = {};
     std::deque<std::pair<u64, BufferId>> buffer_zombies = {};
     std::deque<std::pair<u64, ImageId>> image_zombies = {};
     std::deque<std::pair<u64, ImageViewId>> image_view_zombies = {};
@@ -115,55 +115,60 @@ struct daxa_ImplDevice final : public ImplHandle
     struct ImplQueue
     {
         // Constant after initialization:
-        daxa_QueueFamily family = {};
+        daxa_QueueType type = {};
         u32 queue_index = {};
-        u32 vk_queue_family_index = ~0u;
+        u32 vk_queue_type_index = ~0u;
         VkQueue vk_queue = {};
         VkSemaphore gpu_queue_local_timeline = {};
         // atomically synchronized:
         std::atomic_uint64_t latest_pending_submit_timeline_value = {};
+        std::mutex mtx = {};
 
         auto initialize(VkDevice vk_device) -> daxa_Result;
         void cleanup(VkDevice device);
         auto get_oldest_pending_submit(VkDevice vk_device, std::optional<u64> & out) -> daxa_Result;
     };
     std::array<ImplQueue, DAXA_MAX_COMPUTE_QUEUE_COUNT + DAXA_MAX_TRANSFER_QUEUE_COUNT + 1> queues = {
-        ImplQueue{.family = DAXA_QUEUE_FAMILY_MAIN, .queue_index = 0},
-        ImplQueue{.family = DAXA_QUEUE_FAMILY_COMPUTE, .queue_index = 0},
-        ImplQueue{.family = DAXA_QUEUE_FAMILY_COMPUTE, .queue_index = 1},
-        ImplQueue{.family = DAXA_QUEUE_FAMILY_COMPUTE, .queue_index = 2},
-        ImplQueue{.family = DAXA_QUEUE_FAMILY_COMPUTE, .queue_index = 3},
-        ImplQueue{.family = DAXA_QUEUE_FAMILY_COMPUTE, .queue_index = 4},
-        ImplQueue{.family = DAXA_QUEUE_FAMILY_COMPUTE, .queue_index = 5},
-        ImplQueue{.family = DAXA_QUEUE_FAMILY_COMPUTE, .queue_index = 6},
-        ImplQueue{.family = DAXA_QUEUE_FAMILY_COMPUTE, .queue_index = 7},
-        ImplQueue{.family = DAXA_QUEUE_FAMILY_TRANSFER, .queue_index = 0},
-        ImplQueue{.family = DAXA_QUEUE_FAMILY_TRANSFER, .queue_index = 1},
+        ImplQueue{.type = DAXA_QUEUE_TYPE_MAIN, .queue_index = 0},
+        ImplQueue{.type = DAXA_QUEUE_TYPE_COMPUTE, .queue_index = 0},
+        ImplQueue{.type = DAXA_QUEUE_TYPE_COMPUTE, .queue_index = 1},
+        ImplQueue{.type = DAXA_QUEUE_TYPE_COMPUTE, .queue_index = 2},
+        ImplQueue{.type = DAXA_QUEUE_TYPE_COMPUTE, .queue_index = 3},
+        ImplQueue{.type = DAXA_QUEUE_TYPE_TRANSFER, .queue_index = 0},
+        ImplQueue{.type = DAXA_QUEUE_TYPE_TRANSFER, .queue_index = 1},
     };
 
     auto get_queue(daxa_Queue queue) -> ImplQueue &;
     auto valid_queue(daxa_Queue queue) -> bool;
 
-    struct ImplQueueFamily
+    struct ImplQueueType
     {
+        u32 vk_queue_type_index = {};
         u32 queue_count = {};
         u32 vk_index = ~0u;
     };
-    std::array<ImplQueueFamily, 3> queue_families = {};
+    std::array<ImplQueueType, 3> queue_families = {};
 
     std::array<u32, 3> valid_vk_queue_families = {};
-    u32 valid_vk_queue_family_count = {};
+    u32 valid_vk_queue_type_count = {};
 
-    auto validate_image_slice(daxa_ImageMipArraySlice const & slice, daxa_ImageId id) -> daxa_ImageMipArraySlice;
-    auto validate_image_slice(daxa_ImageMipArraySlice const & slice, daxa_ImageViewId id) -> daxa_ImageMipArraySlice;
+    auto validate_image_slice(daxa_ImageMipArraySlice const & slice, daxa_ImageId image) -> daxa_ImageMipArraySlice;
+    auto validate_image_slice(daxa_ImageMipArraySlice const & slice, daxa_ImageViewId image_view) -> daxa_ImageMipArraySlice;
     auto new_swapchain_image(VkImage swapchain_image, VkFormat format, u32 index, ImageUsageFlags usage, ImageInfo const & image_info, ImageId * out) -> daxa_Result;
 
-    auto slot(daxa_BufferId id) const -> ImplBufferSlot const &;
-    auto slot(daxa_ImageId id) const -> ImplImageSlot const &;
-    auto slot(daxa_ImageViewId id) const -> ImplImageViewSlot const &;
-    auto slot(daxa_SamplerId id) const -> ImplSamplerSlot const &;
-    auto slot(daxa_TlasId id) const -> ImplTlasSlot const &;
-    auto slot(daxa_BlasId id) const -> ImplBlasSlot const &;
+    auto slot(daxa_BufferId buffer) const -> ImplBufferSlot const &;
+    auto slot(daxa_ImageId image) const -> ImplImageSlot const &;
+    auto slot(daxa_ImageViewId image_view) const -> ImplImageViewSlot const &;
+    auto slot(daxa_SamplerId sampler) const -> ImplSamplerSlot const &;
+    auto slot(daxa_TlasId tlas) const -> ImplTlasSlot const &;
+    auto slot(daxa_BlasId blas) const -> ImplBlasSlot const &;
+
+    auto hot_slot(daxa_BufferId buffer) const -> ImplBufferSlot::HotData const &;
+    auto hot_slot(daxa_ImageId image) const -> ImplImageSlot::HotData const &;
+    auto hot_slot(daxa_ImageViewId image_view) const -> ImplImageViewSlot::HotData const &;
+    auto hot_slot(daxa_SamplerId sampler) const -> ImplSamplerSlot::HotData const &;
+    auto hot_slot(daxa_TlasId tlas) const -> ImplTlasSlot::HotData const &;
+    auto hot_slot(daxa_BlasId blas) const -> ImplBlasSlot::HotData const &;
 
     void cleanup_buffer(BufferId id);
     void cleanup_image(ImageId id);
@@ -180,6 +185,5 @@ struct daxa_ImplDevice final : public ImplHandle
     void zombify_blas(BlasId id);
 
     static auto create_2(daxa_Instance instance, daxa_DeviceInfo2 const & info, struct ImplPhysicalDevice const & physical_device, daxa_DeviceProperties const & properties, daxa_Device device) -> daxa_Result;
-    static auto create(daxa_Instance instance, daxa_DeviceInfo const & info, VkPhysicalDevice physical_device, daxa_Device device) -> daxa_Result;
     static void zero_ref_callback(ImplHandle const * handle);
 };

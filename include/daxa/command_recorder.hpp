@@ -19,16 +19,14 @@ namespace daxa
 
     struct CommandRecorderInfo
     {
-        QueueFamily queue_family = {};
+        QueueType queue_type = {};
         SmallString name = {};
     };
 
     struct ImageBlitInfo
     {
         ImageId src_image = {};
-        ImageLayout src_image_layout = ImageLayout::TRANSFER_SRC_OPTIMAL;
         ImageId dst_image = {};
-        ImageLayout dst_image_layout = ImageLayout::TRANSFER_DST_OPTIMAL;
         ImageArraySlice src_slice = {};
         std::array<Offset3D, 2> src_offsets = {};
         ImageArraySlice dst_slice = {};
@@ -47,10 +45,9 @@ namespace daxa
 
     struct BufferImageCopyInfo
     {
-        BufferId buffer = {};
+        BufferId src_buffer = {};
         usize buffer_offset = {};
-        ImageId image = {};
-        ImageLayout image_layout = ImageLayout::TRANSFER_DST_OPTIMAL;
+        ImageId dst_image = {};
         ImageArraySlice image_slice = {};
         Offset3D image_offset = {};
         Extent3D image_extent = {};
@@ -58,21 +55,18 @@ namespace daxa
 
     struct ImageBufferCopyInfo
     {
-        ImageId image = {};
-        ImageLayout image_layout = ImageLayout::TRANSFER_SRC_OPTIMAL;
+        ImageId src_image = {};
         ImageArraySlice image_slice = {};
         Offset3D image_offset = {};
         Extent3D image_extent = {};
-        BufferId buffer = {};
+        BufferId dst_buffer = {};
         usize buffer_offset = {};
     };
 
     struct ImageCopyInfo
     {
         ImageId src_image = {};
-        ImageLayout src_image_layout = daxa::ImageLayout::TRANSFER_SRC_OPTIMAL;
         ImageId dst_image = {};
-        ImageLayout dst_image_layout = daxa::ImageLayout::TRANSFER_DST_OPTIMAL;
         ImageArraySlice src_slice = {};
         Offset3D src_offset = {};
         ImageArraySlice dst_slice = {};
@@ -82,10 +76,9 @@ namespace daxa
 
     struct ImageClearInfo
     {
-        ImageLayout dst_image_layout = daxa::ImageLayout::TRANSFER_DST_OPTIMAL;
+        ImageId image = {};
+        ImageMipArraySlice slice = {};
         ClearValue clear_value = {};
-        ImageId dst_image = {};
-        ImageMipArraySlice dst_slice = {};
     };
 
     struct BufferClearInfo
@@ -109,13 +102,11 @@ namespace daxa
     {
         ResolveMode mode = ResolveMode::AVERAGE;
         ImageViewId image = {};
-        ImageLayout layout = ImageLayout::ATTACHMENT_OPTIMAL;
     };
 
     struct RenderAttachmentInfo
     {
         ImageViewId image_view = {};
-        ImageLayout layout = ImageLayout::ATTACHMENT_OPTIMAL;
         AttachmentLoadOp load_op = AttachmentLoadOp::DONT_CARE;
         AttachmentStoreOp store_op = AttachmentStoreOp::STORE;
         ClearValue clear_value = {};
@@ -137,8 +128,8 @@ namespace daxa
         uint32_t depth = 1;
         uint32_t raygen_shader_binding_table_offset = {};
         uint32_t miss_shader_binding_table_offset = {};
-        uint32_t miss_shader_binding_table_stride = {};
         uint32_t hit_shader_binding_table_offset = {};
+        uint32_t callable_shader_binding_table_offset = {};
         RayTracingShaderBindingTable shader_binding_table;
     };
 
@@ -147,8 +138,8 @@ namespace daxa
         DeviceAddress indirect_device_address = {};
         uint32_t raygen_shader_binding_table_offset = {};
         uint32_t miss_shader_binding_table_offset = {};
-        uint32_t miss_shader_binding_table_stride = {};
         uint32_t hit_shader_binding_table_offset = {};
+        uint32_t callable_shader_binding_table_offset = {};
         RayTracingShaderBindingTable shader_binding_table;
     };
 
@@ -163,6 +154,13 @@ namespace daxa
     {
         BufferId indirect_buffer = {};
         usize offset = {};
+    };
+
+    struct DrawMeshTasksInfo
+    {
+        u32 x = {};
+        u32 y = {};
+        u32 z = {};
     };
 
     struct DrawMeshTasksIndirectInfo
@@ -251,15 +249,6 @@ namespace daxa
         SmallString name = {};
     };
 
-    struct SetUniformBufferInfo
-    {
-        // Binding slot the buffer will be bound to.
-        u32 slot = {};
-        BufferId buffer = {};
-        usize size = {};
-        usize offset = {};
-    };
-
     struct DepthBiasInfo
     {
         f32 constant_factor = {};
@@ -269,7 +258,7 @@ namespace daxa
 
     struct SetIndexBufferInfo
     {
-        BufferId id = {};
+        BufferId buffer = {};
         usize offset = {};
         IndexType index_type = IndexType::uint32;
     };
@@ -311,7 +300,7 @@ namespace daxa
 
         void push_constant_vptr(PushConstantInfo const & info);
         template <typename T>
-        void push_constant(T const & constant, [[maybe_unused]] [[deprecated("parameter ignored. API: 3.1")]] u32 offset = 0)
+        void push_constant(T const & constant)
         {
             push_constant_vptr({
                 .data = static_cast<void const *>(&constant),
@@ -329,7 +318,7 @@ namespace daxa
         void draw_indexed(DrawIndexedInfo const & info);
         void draw_indirect(DrawIndirectInfo const & info);
         void draw_indirect_count(DrawIndirectCountInfo const & info);
-        void draw_mesh_tasks(u32 x, u32 y, u32 z);
+        void draw_mesh_tasks(DrawMeshTasksInfo const & info);
         void draw_mesh_tasks_indirect(DrawMeshTasksIndirectInfo const & info);
         void draw_mesh_tasks_indirect_count(DrawMeshTasksIndirectCountInfo const & info);
     };
@@ -348,13 +337,6 @@ namespace daxa
      * * must be externally synchronized
      * * can be passed between different threads
      * * may only be accessed by one thread at a time
-     * WARNING:
-     * * creating a command list, it will LOCK resource lifetimes
-     * * calling collect_garbage will BLOCK until all resource lifetime locks have been unlocked
-     * * completing a command list will remove its lock on the resource lifetimes
-     * * most record commands can throw exceptions on invalid inputs such as invalid ids
-     * * using deferred destructions will make the completed command list not reusable,
-     *   as resources can only be destroyed once
      */
     struct DAXA_EXPORT_CXX CommandRecorder
     {
@@ -385,11 +367,11 @@ namespace daxa
         /// @brief  Successive pipeline barrier calls are combined.
         ///         As soon as a non-pipeline barrier command is recorded, the currently recorded barriers are flushed with a vkCmdPipelineBarrier2 call.
         /// @param info parameters.
-        void pipeline_barrier(MemoryBarrierInfo const & info);
+        void pipeline_barrier(BarrierInfo const & info);
         /// @brief  Successive pipeline barrier calls are combined.
         ///         As soon as a non-pipeline barrier command is recorded, the currently recorded barriers are flushed with a vkCmdPipelineBarrier2 call.
         /// @param info parameters.
-        void pipeline_barrier_image_transition(ImageMemoryBarrierInfo const & info);
+        void pipeline_image_barrier(ImageBarrierInfo const & info);
         void signal_event(EventSignalInfo const & info);
         void wait_events(daxa::Span<EventWaitInfo const> const & infos);
         void wait_event(EventWaitInfo const & info);
@@ -398,29 +380,31 @@ namespace daxa
         /// @brief  Destroys the buffer AFTER the gpu is finished executing the command list.
         ///         Zombifies object after submitting the commands.
         ///         Useful for large uploads exceeding staging memory pools.
-        /// @param id buffer to be destroyed after command list finishes.
-        void destroy_buffer_deferred(BufferId id);
+        /// @param buffer buffer to be destroyed after command list finishes.
+        void destroy_buffer_deferred(BufferId buffer);
         /// @brief  Destroys the image AFTER the gpu is finished executing the command list.
         ///         Zombifies object after submitting the commands.
         ///         Useful for large uploads exceeding staging memory pools.
-        /// @param id image to be destroyed after command list finishes.
-        void destroy_image_deferred(ImageId id);
+        /// @param image image to be destroyed after command list finishes.
+        void destroy_image_deferred(ImageId image);
         /// @brief  Destroys the image view AFTER the gpu is finished executing the command list.
         ///         Zombifies object after submitting the commands.
         ///         Useful for large uploads exceeding staging memory pools.
-        /// @param id image view to be destroyed after command list finishes.
-        void destroy_image_view_deferred(ImageViewId id);
+        /// @param image_view image view to be destroyed after command list finishes.
+        void destroy_image_view_deferred(ImageViewId image_view);
         /// @brief  Destroys the sampler AFTER the gpu is finished executing the command list.
         ///         Zombifies object after submitting the commands.
         ///         Useful for large uploads exceeding staging memory pools.
-        /// @param id image sampler be destroyed after command list finishes.
-        void destroy_sampler_deferred(SamplerId id);
+        /// @param sampler image sampler be destroyed after command list finishes.
+        void destroy_sampler_deferred(SamplerId sampler);
 
         void write_timestamp(WriteTimestampInfo const & info);
         void reset_timestamps(ResetTimestampsInfo const & info);
 
         void begin_label(CommandLabelInfo const & info);
         void end_label();
+
+        [[nodiscard]] auto get() const -> daxa_CommandRecorder { return internal; }
 
         [[nodiscard]] auto complete_current_commands() -> ExecutableCommandList;
 

@@ -11,8 +11,9 @@
 
 namespace daxa
 {
-    static constexpr inline u32 MAX_COMPUTE_QUEUE_COUNT = 8u;
+    static constexpr inline u32 MAX_COMPUTE_QUEUE_COUNT = 4u;
     static constexpr inline u32 MAX_TRANSFER_QUEUE_COUNT = 2u;
+    static constexpr inline u32 MAX_TOTAL_QUEUE_COUNT = 1u + MAX_COMPUTE_QUEUE_COUNT + MAX_TRANSFER_QUEUE_COUNT;
 
     enum struct DeviceType
     {
@@ -195,29 +196,11 @@ namespace daxa
         u32 invocation_reorder_mode = {};
     };
 
-#if !DAXA_REMOVE_DEPRECATED
-    struct DeviceFlagsProperties
+    struct HostImageCopyProperties
     {
-        using Data = u32;
+        u8 optimal_tiling_layout_uuid[16U];
+        bool identical_memory_type_requirements;
     };
-    using DeviceFlags = Flags<DeviceFlagsProperties>;
-    struct [[deprecated("Use ExplicitFeatureFlags or ImplicitFeatureFlags instead, API:3.1")]] DeviceFlagBits
-    {
-        [[deprecated("Use ExplicitFeatureFlags or ImplicitFeatureFlags instead, API:3.1")]] static inline constexpr DeviceFlags NONE = {0x00000000};
-        [[deprecated("Use ExplicitFeatureFlags or ImplicitFeatureFlags instead, API:3.1")]] static inline constexpr DeviceFlags BUFFER_DEVICE_ADDRESS_CAPTURE_REPLAY_BIT = {0x1 << 0};
-        [[deprecated("Use ExplicitFeatureFlags or ImplicitFeatureFlags instead, API:3.1")]] static inline constexpr DeviceFlags CONSERVATIVE_RASTERIZATION = {0x1 << 1};
-        [[deprecated("Use ExplicitFeatureFlags or ImplicitFeatureFlags instead, API:3.1")]] static inline constexpr DeviceFlags MESH_SHADER = {0x1 << 2};
-        [[deprecated("Use ExplicitFeatureFlags or ImplicitFeatureFlags instead, API:3.1")]] static inline constexpr DeviceFlags SHADER_ATOMIC64 = {0x1 << 3};
-        [[deprecated("Use ExplicitFeatureFlags or ImplicitFeatureFlags instead, API:3.1")]] static inline constexpr DeviceFlags IMAGE_ATOMIC64 = {0x1 << 4};
-        [[deprecated("Use ExplicitFeatureFlags or ImplicitFeatureFlags instead, API:3.1")]] static inline constexpr DeviceFlags VK_MEMORY_MODEL = {0x1 << 5};
-        [[deprecated("Use ExplicitFeatureFlags or ImplicitFeatureFlags instead, API:3.1")]] static inline constexpr DeviceFlags RAY_TRACING = {0x1 << 6};
-        [[deprecated("Use ExplicitFeatureFlags or ImplicitFeatureFlags instead, API:3.1")]] static inline constexpr DeviceFlags SHADER_FLOAT16 = {0x1 << 7};
-        [[deprecated("Use ExplicitFeatureFlags or ImplicitFeatureFlags instead, API:3.1")]] static inline constexpr DeviceFlags ROBUST_BUFFER_ACCESS = {0x1 << 9};
-        [[deprecated("Use ExplicitFeatureFlags or ImplicitFeatureFlags instead, API:3.1")]] static inline constexpr DeviceFlags ROBUST_IMAGE_ACCESS = {0x1 << 10};
-        [[deprecated("Use ExplicitFeatureFlags or ImplicitFeatureFlags instead, API:3.1")]] static inline constexpr DeviceFlags DYNAMIC_STATE_3 = {0x1 << 11};
-        [[deprecated("Use ExplicitFeatureFlags or ImplicitFeatureFlags instead, API:3.1")]] static inline constexpr DeviceFlags SHADER_ATOMIC_FLOAT = {0x1 << 12};
-    };
-#endif
 
     enum struct MissingRequiredVkFeature
     {
@@ -235,6 +218,7 @@ namespace daxa
         SHADER_STORAGE_IMAGE_READ_WITHOUT_FORMAT,
         SHADER_STORAGE_IMAGE_WRITE_WITHOUT_FORMAT,
         SHADER_INT64,
+        IMAGE_GATHER_EXTENDED,
         VARIABLE_POINTERS_STORAGE_BUFFER,
         VARIABLE_POINTERS,
         BUFFER_DEVICE_ADDRESS,
@@ -301,9 +285,8 @@ namespace daxa
         static inline constexpr ImplicitFeatureFlags SWAPCHAIN = {0x1 << 12};
         static inline constexpr ImplicitFeatureFlags SHADER_INT16 = {0x1 << 13};
         static inline constexpr ImplicitFeatureFlags SHADER_CLOCK = {0x1 << 14};
-        static inline constexpr ImplicitFeatureFlags LINE_RASTERIZATION = {0x1 << 15};
-        static inline constexpr ImplicitFeatureFlags PRESENT_WAIT = {0x1 << 16};
-        static inline constexpr ImplicitFeatureFlags CALIBRATED_TIMESTAMPS = {0x1 << 17};
+        static inline constexpr ImplicitFeatureFlags HOST_IMAGE_COPY = {0x1 << 15};
+        static inline constexpr ImplicitFeatureFlags LINE_RASTERIZATION = {0x1 << 16};
     };
 
     struct DeviceProperties
@@ -320,6 +303,7 @@ namespace daxa
         Optional<RayTracingPipelineProperties> ray_tracing_properties = {};
         Optional<AccelerationStructureProperties> acceleration_structure_properties = {};
         Optional<InvocationReorderProperties> invocation_reorder_properties = {};
+        Optional<HostImageCopyProperties> host_image_copy_properties = {};
         u32 required_subgroup_size_stages;
         u32 compute_queue_count = {};
         u32 transfer_queue_count = {};
@@ -328,25 +312,42 @@ namespace daxa
         MissingRequiredVkFeature missing_required_feature;
     };
 
-#if !DAXA_REMOVE_DEPRECATED
-    [[deprecated("Use create_device_2 and Instance::choose_device instead, API:3.1")]] DAXA_EXPORT_CXX auto default_device_score(DeviceProperties const & device_props) -> i32;
-
-    struct [[deprecated("Use DeviceInfo2 instead")]] DeviceInfo
+    struct MemoryImageCopyFlagProperties
     {
-        i32 (*selector)(DeviceProperties const & properties) = default_device_score;
-        DeviceFlags flags =
-            DeviceFlagBits::BUFFER_DEVICE_ADDRESS_CAPTURE_REPLAY_BIT |
-            DeviceFlagBits::SHADER_ATOMIC64 |
-            DeviceFlagBits::IMAGE_ATOMIC64 |
-            DeviceFlagBits::DYNAMIC_STATE_3;
-        // Make sure your device actually supports the max numbers, as device creation will fail otherwise.
-        u32 max_allowed_images = 10'000;
-        u32 max_allowed_buffers = 10'000;
-        u32 max_allowed_samplers = 400;
-        u32 max_allowed_acceleration_structures = 10'000;
-        SmallString name = {};
+        using Data = u32;
     };
-#endif
+    using MemoryImageCopyFlags = Flags<MemoryImageCopyFlagProperties>;
+    struct MemoryImageCopyFlagBits
+    {
+        static inline constexpr MemoryImageCopyFlags NONE = {0};
+        static inline constexpr MemoryImageCopyFlags MEMCPY = {0x1 << 0};
+    };
+
+    struct MemoryToImageCopyInfo
+    {
+        MemoryImageCopyFlagBits flags = {};
+        std::byte const* memory_ptr = {};
+        ImageId image = {};
+        ImageArraySlice image_slice = {};
+        Offset3D image_offset = {};
+        Extent3D image_extent = {};
+    };
+
+    struct ImageToMemoryCopyInfo
+    {
+        MemoryImageCopyFlagBits flags = {};
+        ImageId image = {};
+        ImageArraySlice image_slice = {};
+        Offset3D image_offset = {};
+        Extent3D image_extent = {};
+        std::byte* memory_ptr = {};
+    };
+
+    struct HostImageLayoutOperationInfo
+    {
+        ImageId image = {};
+        ImageLayoutOperation layout_operation = {};
+    };
 
     struct DeviceInfo2
     {
@@ -362,43 +363,67 @@ namespace daxa
 
     struct Queue
     {
-        QueueFamily family = {};
+        QueueType type = {};
         u32 index = {};
+
+        [[nodiscard]] DAXA_EXPORT_CXX auto operator==(Queue const & other) const noexcept -> bool
+        {
+            return this->type == other.type && this->index == other.index;
+        }
+
+        [[nodiscard]] DAXA_EXPORT_CXX auto operator!=(Queue const & other) const noexcept -> bool
+        {
+            return !(*this == other);
+        }
     };
 
-    static constexpr inline Queue QUEUE_MAIN = Queue{QueueFamily::MAIN, 0};
-    static constexpr inline Queue QUEUE_COMPUTE_0 = Queue{QueueFamily::COMPUTE, 0};
-    static constexpr inline Queue QUEUE_COMPUTE_1 = Queue{QueueFamily::COMPUTE, 1};
-    static constexpr inline Queue QUEUE_COMPUTE_2 = Queue{QueueFamily::COMPUTE, 2};
-    static constexpr inline Queue QUEUE_COMPUTE_3 = Queue{QueueFamily::COMPUTE, 3};
-    static constexpr inline Queue QUEUE_COMPUTE_4 = Queue{QueueFamily::COMPUTE, 4};
-    static constexpr inline Queue QUEUE_COMPUTE_5 = Queue{QueueFamily::COMPUTE, 5};
-    static constexpr inline Queue QUEUE_COMPUTE_6 = Queue{QueueFamily::COMPUTE, 6};
-    static constexpr inline Queue QUEUE_COMPUTE_7 = Queue{QueueFamily::COMPUTE, 7};
-    static constexpr inline Queue QUEUE_TRANSFER_0 = Queue{QueueFamily::TRANSFER, 0};
-    static constexpr inline Queue QUEUE_TRANSFER_1 = Queue{QueueFamily::TRANSFER, 1};
+    [[nodiscard]] DAXA_EXPORT_CXX auto to_string(QueueType queue_type) -> std::string_view;
+    [[nodiscard]] DAXA_EXPORT_CXX auto to_string(Queue queue) -> std::string_view;
+
+    static constexpr inline Queue QUEUE_NONE = Queue{QueueType::MAX_ENUM, 0};
+    static constexpr inline Queue QUEUE_MAIN = Queue{QueueType::MAIN, 0};
+    static constexpr inline Queue QUEUE_COMPUTE_0 = Queue{QueueType::COMPUTE, 0};
+    static constexpr inline Queue QUEUE_COMPUTE_1 = Queue{QueueType::COMPUTE, 1};
+    static constexpr inline Queue QUEUE_COMPUTE_2 = Queue{QueueType::COMPUTE, 2};
+    static constexpr inline Queue QUEUE_COMPUTE_3 = Queue{QueueType::COMPUTE, 3};
+    static constexpr inline Queue QUEUE_TRANSFER_0 = Queue{QueueType::TRANSFER, 0};
+    static constexpr inline Queue QUEUE_TRANSFER_1 = Queue{QueueType::TRANSFER, 1};
 
     struct CommandSubmitInfo
     {
         Queue queue = daxa::QUEUE_MAIN;
-        PipelineStageFlags wait_stages = {};
         daxa::Span<ExecutableCommandList const> command_lists = {};
         daxa::Span<BinarySemaphore const> wait_binary_semaphores = {};
         daxa::Span<BinarySemaphore const> signal_binary_semaphores = {};
         daxa::Span<std::pair<TimelineSemaphore, u64> const> wait_timeline_semaphores = {};
         daxa::Span<std::pair<TimelineSemaphore, u64> const> signal_timeline_semaphores = {};
+        daxa::Span<std::pair<Queue, u64> const> wait_queue_submit_indices = {};
     };
 
     struct PresentInfo
     {
         daxa::Span<BinarySemaphore const> wait_binary_semaphores = {};
-        Swapchain swapchain;
+        Swapchain swapchain = {};
         Queue queue = QUEUE_MAIN;
+    };
+
+    struct WaitOnSubmitInfo
+    {
+        Queue queue = {};
+        u64 queue_submit_index = {};
+        u64 timeout = ~0ull;
     };
 
     struct MemoryBlockBufferInfo
     {
         BufferInfo buffer_info = {};
+        MemoryBlock & memory_block;
+        usize offset = {};
+    };
+
+    struct MemoryBlockTlasInfo
+    {
+        TlasInfo tlas_info = {};
         MemoryBlock & memory_block;
         usize offset = {};
     };
@@ -420,41 +445,41 @@ namespace daxa
     struct BufferTlasInfo
     {
         TlasInfo tlas_info = {};
-        BufferId buffer_id = {};
+        BufferId buffer = {};
         u64 offset = {};
     };
 
     struct BufferBlasInfo
     {
         BlasInfo blas_info = {};
-        BufferId buffer_id = {};
+        BufferId buffer = {};
         u64 offset = {};
     };
 
     struct BufferIdDeviceMemorySizePair
     {
-        BufferId id = {};
+        BufferId buffer = {};
         u64 size = {};
         bool block_allocated = {};
     };
 
     struct ImageIdDeviceMemorySizePair
     {
-        ImageId id = {};
+        ImageId image = {};
         u64 size = {};
         bool block_allocated = {};
     };
 
     struct TlasIdDeviceMemorySizePair
     {
-        TlasId id = {};
+        TlasId tlas = {};
         u64 size = {};
         // NOTE: All tlas are aliased allocations into buffers
     };
 
     struct BlasIdDeviceMemorySizePair
     {
-        BlasId id = {};
+        BlasId blas = {};
         u64 size = {};
         // NOTE: All tlas are aliased allocations into buffers
     };
@@ -500,6 +525,20 @@ namespace daxa
         std::vector<MemoryBLockDeviceMemorySizePair> memory_block_list = {};
     };
 
+    struct BufferOffsetPair
+    {
+        BufferId buffer = {};
+        u64 offset = {};
+    };
+
+    struct ChooseSwapchainSurfaceFormatInfo
+    {
+        NativeWindowInfo native_window_info = {};
+        // Leave this span completely empty for daxa to select a surface format.
+        // For each preferred format, leave the color space empty for daxa to select a color space.
+        Span<SurfaceFormat const> preferred_formats = {};
+    };
+
     /**
      * @brief   Device represents a logical device that may be a virtual or physical gpu.
      *          Device manages all general gpu operations that are not handled by other objects.
@@ -521,7 +560,9 @@ namespace daxa
         [[nodiscard]] auto as_build_sizes(TlasBuildInfo const & info) { return tlas_build_sizes(info); }
         [[nodiscard]] auto as_build_sizes(BlasBuildInfo const & info) { return blas_build_sizes(info); }
 
+        /// WARNING: THIS FUNCTION IS VERY SLOW, ONLY CALL IT FOR DEBUGGING PURPOSES!
         void device_memory_report(DeviceMemoryReport & out_report) const;
+        
         [[nodiscard]] auto device_memory_report_convenient() const -> DeviceMemoryReportConvenient;
         [[nodiscard]] auto buffer_memory_requirements(BufferInfo const & info) const -> MemoryRequirements;
         [[nodiscard]] auto image_memory_requirements(ImageInfo const & info) const -> MemoryRequirements;
@@ -531,6 +572,7 @@ namespace daxa
         [[nodiscard]] auto create_buffer(BufferInfo const & info) -> BufferId;
         [[nodiscard]] auto create_image(ImageInfo const & info) -> ImageId;
         [[nodiscard]] auto create_buffer_from_memory_block(MemoryBlockBufferInfo const & info) -> BufferId;
+        [[nodiscard]] auto create_tlas_from_memory_block(MemoryBlockTlasInfo const & info) -> TlasId;
         [[nodiscard]] auto create_image_from_memory_block(MemoryBlockImageInfo const & info) -> ImageId;
         [[nodiscard]] auto create_image_view(ImageViewInfo const & info) -> ImageViewId;
         [[nodiscard]] auto create_sampler(SamplerInfo const & info) -> SamplerId;
@@ -549,18 +591,31 @@ namespace daxa
         [[nodiscard]] auto create(BufferTlasInfo const & info) { return create_tlas_from_buffer(info); }
         [[nodiscard]] auto create(BufferBlasInfo const & info) { return create_blas_from_buffer(info); }
 
-        void destroy_buffer(BufferId id);
-        void destroy_image(ImageId id);
-        void destroy_image_view(ImageViewId id);
-        void destroy_sampler(SamplerId id);
-        void destroy_tlas(TlasId id);
-        void destroy_blas(BlasId id);
-        void destroy(BufferId id) { destroy_buffer(id); }
-        void destroy(ImageId id) { destroy_image(id); }
-        void destroy(ImageViewId id) { destroy_image_view(id); }
-        void destroy(SamplerId id) { destroy_sampler(id); }
-        void destroy(TlasId id) { destroy_tlas(id); }
-        void destroy(BlasId id) { destroy_blas(id); }
+        auto inc_refcnt_buffer(BufferId buffer) -> bool;
+        auto inc_refcnt_image(ImageId image) -> bool;
+        auto inc_refcnt_image_view(ImageViewId image_view) -> bool;
+        auto inc_refcnt_sampler(SamplerId sampler) -> bool;
+        auto inc_refcnt_tlas(TlasId tlas) -> bool;
+        auto inc_refcnt_blas(BlasId blas) -> bool;
+        auto inc_refcnt(BufferId buffer) -> bool { return inc_refcnt_buffer(buffer); }
+        auto inc_refcnt(ImageId image) -> bool { return inc_refcnt_image(image); }
+        auto inc_refcnt(ImageViewId image_view) -> bool { return inc_refcnt_image_view(image_view); }
+        auto inc_refcnt(SamplerId sampler) -> bool { return inc_refcnt_sampler(sampler); }
+        auto inc_refcnt(TlasId tlas) -> bool { return inc_refcnt_tlas(tlas); }
+        auto inc_refcnt(BlasId blas) -> bool { return inc_refcnt_blas(blas); }
+
+        void destroy_buffer(BufferId buffer);
+        void destroy_image(ImageId image);
+        void destroy_image_view(ImageViewId image_view);
+        void destroy_sampler(SamplerId sampler);
+        void destroy_tlas(TlasId tlas);
+        void destroy_blas(BlasId blas);
+        void destroy(BufferId buffer) { destroy_buffer(buffer); }
+        void destroy(ImageId image) { destroy_image(image); }
+        void destroy(ImageViewId image_view) { destroy_image_view(image_view); }
+        void destroy(SamplerId sampler) { destroy_sampler(sampler); }
+        void destroy(TlasId tlas) { destroy_tlas(tlas); }
+        void destroy(BlasId blas) { destroy_blas(blas); }
 
         // TODO: deprecate?
 
@@ -568,54 +623,61 @@ namespace daxa
         ///         This is also the case for gpu resources (buffer, image(view), sampler, as).
         /// @param id of the object.
         /// @return a value copy of the info. Returns nullopt when the id is invalid.
-        [[nodiscard]] auto buffer_info(BufferId id) const -> Optional<BufferInfo>;
-        [[nodiscard]] auto image_info(ImageId id) const -> Optional<ImageInfo>;
-        [[nodiscard]] auto image_view_info(ImageViewId id) const -> Optional<ImageViewInfo>;
-        [[nodiscard]] auto sampler_info(SamplerId id) const -> Optional<SamplerInfo>;
-        [[nodiscard]] auto tlas_info(TlasId id) const -> Optional<TlasInfo>;
-        [[nodiscard]] auto blas_info(BlasId id) const -> Optional<BlasInfo>;
-        [[nodiscard]] auto info(BufferId id) const { return buffer_info(id); }
-        [[nodiscard]] auto info(ImageId id) const { return image_info(id); }
-        [[nodiscard]] auto info(ImageViewId id) const { return image_view_info(id); }
-        [[nodiscard]] auto info(SamplerId id) const { return sampler_info(id); }
-        [[nodiscard]] auto info(TlasId id) const { return tlas_info(id); }
-        [[nodiscard]] auto info(BlasId id) const { return blas_info(id); }
+        [[nodiscard]] auto buffer_info(BufferId buffer) const -> Optional<BufferInfo>;
+        [[nodiscard]] auto image_info(ImageId image) const -> Optional<ImageInfo>;
+        [[nodiscard]] auto image_view_info(ImageViewId image_view) const -> Optional<ImageViewInfo>;
+        [[nodiscard]] auto sampler_info(SamplerId sampler) const -> Optional<SamplerInfo>;
+        [[nodiscard]] auto tlas_info(TlasId tlas) const -> Optional<TlasInfo>;
+        [[nodiscard]] auto blas_info(BlasId blas) const -> Optional<BlasInfo>;
+        [[nodiscard]] auto info(BufferId buffer) const { return buffer_info(buffer); }
+        [[nodiscard]] auto info(ImageId image) const { return image_info(image); }
+        [[nodiscard]] auto info(ImageViewId image_view) const { return image_view_info(image_view); }
+        [[nodiscard]] auto info(SamplerId sampler) const { return sampler_info(sampler); }
+        [[nodiscard]] auto info(TlasId tlas) const { return tlas_info(tlas); }
+        [[nodiscard]] auto info(BlasId blas) const { return blas_info(blas); }
 
         /// @brief  Will describe if a given id is valid.
         ///         An id is valid as long as it was created by the device and not yet destroyed.
         /// @param id or the object.
         /// @return validity of id
-        [[nodiscard]] auto is_image_id_valid(ImageId id) const -> bool;
-        [[nodiscard]] auto is_image_view_id_valid(ImageViewId id) const -> bool;
-        [[nodiscard]] auto is_buffer_id_valid(BufferId id) const -> bool;
-        [[nodiscard]] auto is_sampler_id_valid(SamplerId id) const -> bool;
-        [[nodiscard]] auto is_tlas_id_valid(TlasId id) const -> bool;
-        [[nodiscard]] auto is_blas_id_valid(BlasId id) const -> bool;
-        [[nodiscard]] auto is_id_valid(ImageId id) const { return is_image_id_valid(id); }
-        [[nodiscard]] auto is_id_valid(ImageViewId id) const { return is_image_view_id_valid(id); }
-        [[nodiscard]] auto is_id_valid(BufferId id) const { return is_buffer_id_valid(id); }
-        [[nodiscard]] auto is_id_valid(SamplerId id) const { return is_sampler_id_valid(id); }
-        [[nodiscard]] auto is_id_valid(TlasId id) const { return is_tlas_id_valid(id); }
-        [[nodiscard]] auto is_id_valid(BlasId id) const { return is_blas_id_valid(id); }
+        [[nodiscard]] auto is_image_id_valid(ImageId image) const -> bool;
+        [[nodiscard]] auto is_image_view_id_valid(ImageViewId image_view) const -> bool;
+        [[nodiscard]] auto is_buffer_id_valid(BufferId buffer) const -> bool;
+        [[nodiscard]] auto is_sampler_id_valid(SamplerId sampler) const -> bool;
+        [[nodiscard]] auto is_tlas_id_valid(TlasId tlas) const -> bool;
+        [[nodiscard]] auto is_blas_id_valid(BlasId blas) const -> bool;
+        [[nodiscard]] auto is_id_valid(ImageId image) const { return is_image_id_valid(image); }
+        [[nodiscard]] auto is_id_valid(ImageViewId image_view) const { return is_image_view_id_valid(image_view); }
+        [[nodiscard]] auto is_id_valid(BufferId buffer) const { return is_buffer_id_valid(buffer); }
+        [[nodiscard]] auto is_id_valid(SamplerId sampler) const { return is_sampler_id_valid(sampler); }
+        [[nodiscard]] auto is_id_valid(TlasId tlas) const { return is_tlas_id_valid(tlas); }
+        [[nodiscard]] auto is_id_valid(BlasId blas) const { return is_blas_id_valid(blas); }
 
-        [[nodiscard]] auto buffer_device_address(BufferId id) const -> Optional<DeviceAddress>;
-        [[nodiscard]] auto blas_device_address(BlasId id) const -> Optional<DeviceAddress>;
-        [[nodiscard]] auto tlas_device_address(TlasId id) const -> Optional<DeviceAddress>;
-        [[nodiscard]] auto device_address(BufferId id) const { return buffer_device_address(id); }
-        [[nodiscard]] auto device_address(BlasId id) const { return blas_device_address(id); }
-        [[nodiscard]] auto device_address(TlasId id) const { return tlas_device_address(id); }
+        [[nodiscard]] auto buffer_device_address(BufferId buffer) const -> Optional<DeviceAddress>;
+        [[nodiscard]] auto blas_device_address(BlasId blas) const -> Optional<DeviceAddress>;
+        [[nodiscard]] auto tlas_device_address(TlasId tlas) const -> Optional<DeviceAddress>;
+        [[nodiscard]] auto device_address(BufferId buffer) const { return buffer_device_address(buffer); }
+        [[nodiscard]] auto device_address(BlasId blas) const { return blas_device_address(blas); }
+        [[nodiscard]] auto device_address(TlasId tlas) const { return tlas_device_address(tlas); }
 
-        [[nodiscard]] auto buffer_host_address(BufferId id) const -> Optional<std::byte *>;
+        /// WARNING: THIS FUNCTION IS VERY SLOW, ONLY CALL IT FOR DEBUGGING PURPOSES!
+        [[nodiscard]] auto buffer_device_address_to_buffer(DeviceAddress address) -> Optional<BufferOffsetPair>;
+
+        [[nodiscard]] auto buffer_host_address(BufferId buffer) const -> Optional<std::byte *>;
         template <typename T>
-        [[nodiscard]] auto buffer_host_address_as(BufferId id) const -> Optional<T *>
+        [[nodiscard]] auto buffer_host_address_as(BufferId buffer) const -> Optional<T *>
         {
-            auto opt = buffer_host_address(id);
+            auto opt = buffer_host_address(buffer);
             if (opt.has_value())
             {
                 return {reinterpret_cast<T *>(opt.value())};
             }
             return {};
         }
+
+        void copy_memory_to_image(MemoryToImageCopyInfo const & info);
+        void copy_image_to_memory(ImageToMemoryCopyInfo const & info);
+        void image_layout_operation(HostImageLayoutOperationInfo const & info);
 
         [[nodiscard]] auto create_raster_pipeline(RasterPipelineInfo const & info) -> RasterPipeline;
         [[nodiscard]] auto create_compute_pipeline(ComputePipelineInfo const & info) -> ComputePipeline;
@@ -632,32 +694,36 @@ namespace daxa
         void wait_idle();
 
         void queue_wait_idle(Queue queue);
-        auto queue_count(QueueFamily queue_count) -> u32;
+        auto queue_count(QueueType queue_count) -> u32;
 
-        void submit_commands(CommandSubmitInfo const & submit_info);
+        /// @brief  Submits a command list to the device.
+        /// @return a unique id for each submit, can be used to wait for it to finish.
+        ///         The id is guaranteed to be unique for every call to this function.
+        auto submit_commands(CommandSubmitInfo const & submit_info) -> u64;
         void present_frame(PresentInfo const & info);
+
+        /// @brief  Returns the latest submit index, which is incremented every time a submit is made.
+        auto latest_submit_index() const -> u64;
+
+        /// @brief Returns the oldest pending submits index. Multiple queues may have different pending submits.
+        ///        This can be used to know when the gpu has caught up to a certain point in time ON ALL QUEUES.
+        ///        Useful for synchronizing the destruction of resources.
+        auto oldest_pending_submit_index() const -> u64;
+
+        /// @brief  Returns the latest queue specific submit index. 
+        ///         This is the same index returned in latest_submit_index but specific for this queue only.
+        ///         Internally, each queue has its own timeline semaphore,
+        ///         that is signalled to the latest device signal index after its incremented on a submission.
+        ///         queue submit index can be passed into following submission to wait on that queues submit to complete.
+        auto latest_queue_submit_index(daxa::Queue queue) const -> u64;
+
+        /// @brief  Waits on a specific queues submit to complete on the cpu. 
+        void wait_on_submit(WaitOnSubmitInfo const & info) const;
 
         /// @brief  Actually destroys all resources that are ready to be destroyed.
         ///         When calling destroy, or removing all references to an object, it is zombified not really destroyed.
         ///         A zombie lives until the gpu catches up to the point of zombification.
-        /// NOTE:
-        /// * this function will block until it gains an exclusive resource lock
-        /// * command lists may hold shared lifetime locks, those must all unlock before an exclusive lock can be made
-        /// * look at CommandRecorder for more info on this
-        /// * SoftwareCommandRecorder is exempt from this limitation,
-        ///   you can freely record those in parallel with collect_garbage
         void collect_garbage();
-
-        struct CalibratedTimestamps
-        {
-            u64 device_timestamp = {};
-            u64 host_timestamp = {};
-            u64 max_deviation = {};
-        };
-        /// @brief  Samples the device timestamp clock (same clock as timestamp queries) and the host clock at the same moment.
-        ///         The host clock is `QueryPerformanceCounter` on Windows and `CLOCK_MONOTONIC` on Linux.
-        ///         Requires `ImplicitFeatureFlagBits::CALIBRATED_TIMESTAMPS`.
-        [[nodiscard]] auto get_calibrated_timestamps() const -> CalibratedTimestamps;
 
         /// THREADSAFETY:
         /// * reference MUST NOT be read after the device is destroyed.
@@ -667,33 +733,11 @@ namespace daxa
         /// * reference MUST NOT be read after the device is destroyed.
         /// @return reference to device properties
         [[nodiscard]] auto properties() const -> DeviceProperties const &;
-        [[nodiscard]] auto get_supported_present_modes(NativeWindowHandle native_handle, NativeWindowPlatform native_platform) const -> std::vector<PresentMode>;
+        [[nodiscard]] auto get_supported_present_modes(NativeWindowInfo native_window_info) const -> std::vector<PresentMode>;
+        [[nodiscard]] auto get_supported_image_formats(NativeWindowInfo native_window_info) const -> std::vector<Format>;
 
-#if !DAXA_REMOVE_DEPRECATED
-        /// DEPRECATED:
-
-        [[deprecated("Use tlas_build_sizes or as_build_sizes Instead, API:3.0")]] [[nodiscard]] auto get_tlas_build_sizes(TlasBuildInfo const & info) { return tlas_build_sizes(info); }
-        [[deprecated("Use blas_build_sizes or as_build_sizes Instead, API:3.0")]] [[nodiscard]] auto get_blas_build_sizes(BlasBuildInfo const & info) { return blas_build_sizes(info); }
-        [[deprecated("Use buffer_memory_requirements or memory_requirements Instead, API:3.0")]] [[nodiscard]] auto get_memory_requirements(BufferInfo const & info) const { return buffer_memory_requirements(info); }
-        [[deprecated("Use image_memory_requirements or memory_requirements Instead, API:3.0")]] [[nodiscard]] auto get_memory_requirements(ImageInfo const & info) const { return image_memory_requirements(info); }
-        [[deprecated("Use buffer_info or info instead, API:3.0")]] [[nodiscard]] auto info_buffer(BufferId id) const { return buffer_info(id); }
-        [[deprecated("Use image_info or info instead, API:3.0")]] [[nodiscard]] auto info_image(ImageId id) const { return image_info(id); }
-        [[deprecated("Use image_view_info or info instead, API:3.0")]] [[nodiscard]] auto info_image_view(ImageViewId id) const { return image_view_info(id); }
-        [[deprecated("Use sampler_info or info instead, API:3.0")]] [[nodiscard]] auto info_sampler(SamplerId id) const { return sampler_info(id); }
-        [[deprecated("Use tlas_info or info instead, API:3.0")]] [[nodiscard]] auto info_tlas(TlasId id) const { return tlas_info(id); }
-        [[deprecated("Use blas_info or info instead, API:3.0")]] [[nodiscard]] auto info_blas(BlasId id) const { return blas_info(id); }
-
-        template <typename T>
-        [[deprecated("Use buffer_host_address_as instead, API:3.0")]] [[nodiscard]] auto get_host_address_as(BufferId id) const
-        {
-            return buffer_host_address_as<T>(id);
-        }
-
-        [[deprecated("Use buffer_host_address instead, API:3.0")]] [[nodiscard]] auto get_host_address(BufferId id) const { return buffer_host_address(id); }
-        [[deprecated("Use buffer_device_address or device_address instead, API:3.0")]] [[nodiscard]] auto get_device_address(BufferId id) const { return buffer_device_address(id); }
-        [[deprecated("Use blas_device_address or device_address instead, API:3.0")]] [[nodiscard]] auto get_device_address(BlasId id) const { return blas_device_address(id); }
-        [[deprecated("Use tlas_device_address or device_address instead, API:3.0")]] [[nodiscard]] auto get_device_address(TlasId id) const { return tlas_device_address(id); }
-#endif
+        // Set color space to MAX_ENUM to be ignored in selection.
+        [[nodiscard]] auto choose_swapchain_surface_format(ChooseSwapchainSurfaceFormatInfo const & info) const -> SurfaceFormat;
 
       protected:
         template <typename T, typename H_T>

@@ -5,38 +5,277 @@
 
 // --- Begin Helpers ---
 
-auto is_depth_format(Format format) -> bool
+// clang-format off
+auto daxa_format_info(VkFormat format) -> daxa_FormatInfo
 {
     switch (format)
     {
-    case Format::D16_UNORM: return true;
-    case Format::X8_D24_UNORM_PACK32: return true;
-    case Format::D32_SFLOAT: return true;
-    case Format::S8_UINT: return true;
-    case Format::D16_UNORM_S8_UINT: return true;
-    case Format::D24_UNORM_S8_UINT: return true;
-    case Format::D32_SFLOAT_S8_UINT: return true;
-    default: return false;
+    // --- Undefined ---
+    case VK_FORMAT_UNDEFINED:                       return daxa_FormatInfo{0, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NONE)};
+    // --- 8-bit packed ---
+    case VK_FORMAT_R4G4_UNORM_PACK8:                return daxa_FormatInfo{2, 4, 8, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NORM)};
+    // --- 16-bit packed ---
+    case VK_FORMAT_R4G4B4A4_UNORM_PACK16:           return daxa_FormatInfo{4, 4, 16, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NORM)};
+    case VK_FORMAT_B4G4R4A4_UNORM_PACK16:           return daxa_FormatInfo{4, 4, 16, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NORM)};
+    case VK_FORMAT_R5G6B5_UNORM_PACK16:             return daxa_FormatInfo{3, 0, 16, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NORM)};
+    case VK_FORMAT_B5G6R5_UNORM_PACK16:             return daxa_FormatInfo{3, 0, 16, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NORM)};
+    case VK_FORMAT_R5G5B5A1_UNORM_PACK16:           return daxa_FormatInfo{4, 0, 16, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NORM)};
+    case VK_FORMAT_B5G5R5A1_UNORM_PACK16:           return daxa_FormatInfo{4, 0, 16, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NORM)};
+    case VK_FORMAT_A1R5G5B5_UNORM_PACK16:           return daxa_FormatInfo{4, 0, 16, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NORM)};
+    // --- R8 ---
+    case VK_FORMAT_R8_UNORM:                        return daxa_FormatInfo{1, 8, 8, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NORM)};
+    case VK_FORMAT_R8_SNORM:                        return daxa_FormatInfo{1, 8, 8, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NORM | DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_R8_USCALED:                      return daxa_FormatInfo{1, 8, 8, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SCALED)};
+    case VK_FORMAT_R8_SSCALED:                      return daxa_FormatInfo{1, 8, 8, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SCALED | DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_R8_UINT:                         return daxa_FormatInfo{1, 8, 8, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NONE)};
+    case VK_FORMAT_R8_SINT:                         return daxa_FormatInfo{1, 8, 8, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_R8_SRGB:                         return daxa_FormatInfo{1, 8, 8, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SRGB)};
+    // --- R8G8 ---
+    case VK_FORMAT_R8G8_UNORM:                      return daxa_FormatInfo{2, 8, 16, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NORM)};
+    case VK_FORMAT_R8G8_SNORM:                      return daxa_FormatInfo{2, 8, 16, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NORM | DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_R8G8_USCALED:                    return daxa_FormatInfo{2, 8, 16, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SCALED)};
+    case VK_FORMAT_R8G8_SSCALED:                    return daxa_FormatInfo{2, 8, 16, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SCALED | DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_R8G8_UINT:                       return daxa_FormatInfo{2, 8, 16, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NONE)};
+    case VK_FORMAT_R8G8_SINT:                       return daxa_FormatInfo{2, 8, 16, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_R8G8_SRGB:                       return daxa_FormatInfo{2, 8, 16, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SRGB)};
+    // --- R8G8B8 ---
+    case VK_FORMAT_R8G8B8_UNORM:                    return daxa_FormatInfo{3, 8, 24, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NORM)};
+    case VK_FORMAT_R8G8B8_SNORM:                    return daxa_FormatInfo{3, 8, 24, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NORM | DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_R8G8B8_USCALED:                  return daxa_FormatInfo{3, 8, 24, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SCALED)};
+    case VK_FORMAT_R8G8B8_SSCALED:                  return daxa_FormatInfo{3, 8, 24, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SCALED | DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_R8G8B8_UINT:                     return daxa_FormatInfo{3, 8, 24, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NONE)};
+    case VK_FORMAT_R8G8B8_SINT:                     return daxa_FormatInfo{3, 8, 24, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_R8G8B8_SRGB:                     return daxa_FormatInfo{3, 8, 24, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SRGB)};
+    // --- B8G8R8 ---
+    case VK_FORMAT_B8G8R8_UNORM:                    return daxa_FormatInfo{3, 8, 24, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NORM)};
+    case VK_FORMAT_B8G8R8_SNORM:                    return daxa_FormatInfo{3, 8, 24, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NORM | DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_B8G8R8_USCALED:                  return daxa_FormatInfo{3, 8, 24, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SCALED)};
+    case VK_FORMAT_B8G8R8_SSCALED:                  return daxa_FormatInfo{3, 8, 24, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SCALED | DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_B8G8R8_UINT:                     return daxa_FormatInfo{3, 8, 24, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NONE)};
+    case VK_FORMAT_B8G8R8_SINT:                     return daxa_FormatInfo{3, 8, 24, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_B8G8R8_SRGB:                     return daxa_FormatInfo{3, 8, 24, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SRGB)};
+    // --- R8G8B8A8 ---
+    case VK_FORMAT_R8G8B8A8_UNORM:                  return daxa_FormatInfo{4, 8, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NORM)};
+    case VK_FORMAT_R8G8B8A8_SNORM:                  return daxa_FormatInfo{4, 8, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NORM | DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_R8G8B8A8_USCALED:                return daxa_FormatInfo{4, 8, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SCALED)};
+    case VK_FORMAT_R8G8B8A8_SSCALED:                return daxa_FormatInfo{4, 8, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SCALED | DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_R8G8B8A8_UINT:                   return daxa_FormatInfo{4, 8, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NONE)};
+    case VK_FORMAT_R8G8B8A8_SINT:                   return daxa_FormatInfo{4, 8, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_R8G8B8A8_SRGB:                   return daxa_FormatInfo{4, 8, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SRGB)};
+    // --- B8G8R8A8 ---
+    case VK_FORMAT_B8G8R8A8_UNORM:                  return daxa_FormatInfo{4, 8, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NORM)};
+    case VK_FORMAT_B8G8R8A8_SNORM:                  return daxa_FormatInfo{4, 8, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NORM | DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_B8G8R8A8_USCALED:                return daxa_FormatInfo{4, 8, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SCALED)};
+    case VK_FORMAT_B8G8R8A8_SSCALED:                return daxa_FormatInfo{4, 8, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SCALED | DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_B8G8R8A8_UINT:                   return daxa_FormatInfo{4, 8, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NONE)};
+    case VK_FORMAT_B8G8R8A8_SINT:                   return daxa_FormatInfo{4, 8, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_B8G8R8A8_SRGB:                   return daxa_FormatInfo{4, 8, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SRGB)};
+    // --- A8B8G8R8 packed ---
+    case VK_FORMAT_A8B8G8R8_UNORM_PACK32:           return daxa_FormatInfo{4, 8, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NORM)};
+    case VK_FORMAT_A8B8G8R8_SNORM_PACK32:           return daxa_FormatInfo{4, 8, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NORM | DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_A8B8G8R8_USCALED_PACK32:         return daxa_FormatInfo{4, 8, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SCALED)};
+    case VK_FORMAT_A8B8G8R8_SSCALED_PACK32:         return daxa_FormatInfo{4, 8, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SCALED | DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_A8B8G8R8_UINT_PACK32:            return daxa_FormatInfo{4, 8, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NONE)};
+    case VK_FORMAT_A8B8G8R8_SINT_PACK32:            return daxa_FormatInfo{4, 8, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_A8B8G8R8_SRGB_PACK32:            return daxa_FormatInfo{4, 8, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SRGB)};
+    // --- A2R10G10B10 / A2B10G10R10 packed ---
+    case VK_FORMAT_A2R10G10B10_UNORM_PACK32:        return daxa_FormatInfo{4, 0, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NORM)};
+    case VK_FORMAT_A2R10G10B10_SNORM_PACK32:        return daxa_FormatInfo{4, 0, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NORM | DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_A2R10G10B10_USCALED_PACK32:      return daxa_FormatInfo{4, 0, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SCALED)};
+    case VK_FORMAT_A2R10G10B10_SSCALED_PACK32:      return daxa_FormatInfo{4, 0, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SCALED | DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_A2R10G10B10_UINT_PACK32:         return daxa_FormatInfo{4, 0, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NONE)};
+    case VK_FORMAT_A2R10G10B10_SINT_PACK32:         return daxa_FormatInfo{4, 0, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_A2B10G10R10_UNORM_PACK32:        return daxa_FormatInfo{4, 0, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NORM)};
+    case VK_FORMAT_A2B10G10R10_SNORM_PACK32:        return daxa_FormatInfo{4, 0, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NORM | DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_A2B10G10R10_USCALED_PACK32:      return daxa_FormatInfo{4, 0, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SCALED)};
+    case VK_FORMAT_A2B10G10R10_SSCALED_PACK32:      return daxa_FormatInfo{4, 0, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SCALED | DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_A2B10G10R10_UINT_PACK32:         return daxa_FormatInfo{4, 0, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NONE)};
+    case VK_FORMAT_A2B10G10R10_SINT_PACK32:         return daxa_FormatInfo{4, 0, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SIGNED)};
+    // --- R16 ---
+    case VK_FORMAT_R16_UNORM:                       return daxa_FormatInfo{1, 16, 16, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NORM)};
+    case VK_FORMAT_R16_SNORM:                       return daxa_FormatInfo{1, 16, 16, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NORM | DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_R16_USCALED:                     return daxa_FormatInfo{1, 16, 16, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SCALED)};
+    case VK_FORMAT_R16_SSCALED:                     return daxa_FormatInfo{1, 16, 16, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SCALED | DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_R16_UINT:                        return daxa_FormatInfo{1, 16, 16, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NONE)};
+    case VK_FORMAT_R16_SINT:                        return daxa_FormatInfo{1, 16, 16, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_R16_SFLOAT:                      return daxa_FormatInfo{1, 16, 16, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_FLOAT | DAXA_FORMAT_FLAG_SIGNED)};
+    // --- R16G16 ---
+    case VK_FORMAT_R16G16_UNORM:                    return daxa_FormatInfo{2, 16, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NORM)};
+    case VK_FORMAT_R16G16_SNORM:                    return daxa_FormatInfo{2, 16, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NORM | DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_R16G16_USCALED:                  return daxa_FormatInfo{2, 16, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SCALED)};
+    case VK_FORMAT_R16G16_SSCALED:                  return daxa_FormatInfo{2, 16, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SCALED | DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_R16G16_UINT:                     return daxa_FormatInfo{2, 16, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NONE)};
+    case VK_FORMAT_R16G16_SINT:                     return daxa_FormatInfo{2, 16, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_R16G16_SFLOAT:                   return daxa_FormatInfo{2, 16, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_FLOAT | DAXA_FORMAT_FLAG_SIGNED)};
+    // --- R16G16B16 ---
+    case VK_FORMAT_R16G16B16_UNORM:                 return daxa_FormatInfo{3, 16, 48, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NORM)};
+    case VK_FORMAT_R16G16B16_SNORM:                 return daxa_FormatInfo{3, 16, 48, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NORM | DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_R16G16B16_USCALED:               return daxa_FormatInfo{3, 16, 48, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SCALED)};
+    case VK_FORMAT_R16G16B16_SSCALED:               return daxa_FormatInfo{3, 16, 48, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SCALED | DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_R16G16B16_UINT:                  return daxa_FormatInfo{3, 16, 48, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NONE)};
+    case VK_FORMAT_R16G16B16_SINT:                  return daxa_FormatInfo{3, 16, 48, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_R16G16B16_SFLOAT:                return daxa_FormatInfo{3, 16, 48, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_FLOAT | DAXA_FORMAT_FLAG_SIGNED)};
+    // --- R16G16B16A16 ---
+    case VK_FORMAT_R16G16B16A16_UNORM:              return daxa_FormatInfo{4, 16, 64, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NORM)};
+    case VK_FORMAT_R16G16B16A16_SNORM:              return daxa_FormatInfo{4, 16, 64, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NORM | DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_R16G16B16A16_USCALED:            return daxa_FormatInfo{4, 16, 64, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SCALED)};
+    case VK_FORMAT_R16G16B16A16_SSCALED:            return daxa_FormatInfo{4, 16, 64, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SCALED | DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_R16G16B16A16_UINT:               return daxa_FormatInfo{4, 16, 64, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NONE)};
+    case VK_FORMAT_R16G16B16A16_SINT:               return daxa_FormatInfo{4, 16, 64, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_R16G16B16A16_SFLOAT:             return daxa_FormatInfo{4, 16, 64, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_FLOAT | DAXA_FORMAT_FLAG_SIGNED)};
+    // --- R32 ---
+    case VK_FORMAT_R32_UINT:                        return daxa_FormatInfo{1, 32, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NONE)};
+    case VK_FORMAT_R32_SINT:                        return daxa_FormatInfo{1, 32, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_R32_SFLOAT:                      return daxa_FormatInfo{1, 32, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_FLOAT | DAXA_FORMAT_FLAG_SIGNED)};
+    // --- R32G32 ---
+    case VK_FORMAT_R32G32_UINT:                     return daxa_FormatInfo{2, 32, 64, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NONE)};
+    case VK_FORMAT_R32G32_SINT:                     return daxa_FormatInfo{2, 32, 64, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_R32G32_SFLOAT:                   return daxa_FormatInfo{2, 32, 64, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_FLOAT | DAXA_FORMAT_FLAG_SIGNED)};
+    // --- R32G32B32 ---
+    case VK_FORMAT_R32G32B32_UINT:                  return daxa_FormatInfo{3, 32, 96, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NONE)};
+    case VK_FORMAT_R32G32B32_SINT:                  return daxa_FormatInfo{3, 32, 96, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_R32G32B32_SFLOAT:                return daxa_FormatInfo{3, 32, 96, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_FLOAT | DAXA_FORMAT_FLAG_SIGNED)};
+    // --- R32G32B32A32 ---
+    case VK_FORMAT_R32G32B32A32_UINT:               return daxa_FormatInfo{4, 32, 128, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NONE)};
+    case VK_FORMAT_R32G32B32A32_SINT:               return daxa_FormatInfo{4, 32, 128, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_R32G32B32A32_SFLOAT:             return daxa_FormatInfo{4, 32, 128, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_FLOAT | DAXA_FORMAT_FLAG_SIGNED)};
+    // --- R64 ---
+    case VK_FORMAT_R64_UINT:                        return daxa_FormatInfo{1, 64, 64, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NONE)};
+    case VK_FORMAT_R64_SINT:                        return daxa_FormatInfo{1, 64, 64, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_R64_SFLOAT:                      return daxa_FormatInfo{1, 64, 64, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_FLOAT | DAXA_FORMAT_FLAG_SIGNED)};
+    // --- R64G64 ---
+    case VK_FORMAT_R64G64_UINT:                     return daxa_FormatInfo{2, 64, 128, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NONE)};
+    case VK_FORMAT_R64G64_SINT:                     return daxa_FormatInfo{2, 64, 128, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_R64G64_SFLOAT:                   return daxa_FormatInfo{2, 64, 128, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_FLOAT | DAXA_FORMAT_FLAG_SIGNED)};
+    // --- R64G64B64 (element_bits overflows u8; stored as 0) ---
+    case VK_FORMAT_R64G64B64_UINT:                  return daxa_FormatInfo{3, 64, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NONE)};
+    case VK_FORMAT_R64G64B64_SINT:                  return daxa_FormatInfo{3, 64, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_R64G64B64_SFLOAT:                return daxa_FormatInfo{3, 64, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_FLOAT | DAXA_FORMAT_FLAG_SIGNED)};
+    // --- R64G64B64A64 ---
+    case VK_FORMAT_R64G64B64A64_UINT:               return daxa_FormatInfo{4, 64, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NONE)};
+    case VK_FORMAT_R64G64B64A64_SINT:               return daxa_FormatInfo{4, 64, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_R64G64B64A64_SFLOAT:             return daxa_FormatInfo{4, 64, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_FLOAT | DAXA_FORMAT_FLAG_SIGNED)};
+    // --- Special packed ---
+    case VK_FORMAT_B10G11R11_UFLOAT_PACK32:         return daxa_FormatInfo{3, 0, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_FLOAT | DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_E5B9G9R9_UFLOAT_PACK32:          return daxa_FormatInfo{3, 0, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_FLOAT | DAXA_FORMAT_FLAG_SIGNED)};
+    // --- Depth/stencil ---
+    case VK_FORMAT_D16_UNORM:                       return daxa_FormatInfo{1, 16, 16, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_DEPTH | DAXA_FORMAT_FLAG_NORM)};
+    case VK_FORMAT_X8_D24_UNORM_PACK32:             return daxa_FormatInfo{1, 24, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_DEPTH | DAXA_FORMAT_FLAG_NORM)};
+    case VK_FORMAT_D32_SFLOAT:                      return daxa_FormatInfo{1, 32, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_DEPTH | DAXA_FORMAT_FLAG_FLOAT | DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_S8_UINT:                         return daxa_FormatInfo{1, 8, 8, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_STENCIL | DAXA_FORMAT_FLAG_NONE)};
+    case VK_FORMAT_D16_UNORM_S8_UINT:               return daxa_FormatInfo{2, 0, 24, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_DEPTH | DAXA_FORMAT_FLAG_STENCIL)};
+    case VK_FORMAT_D24_UNORM_S8_UINT:               return daxa_FormatInfo{2, 0, 32, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_DEPTH | DAXA_FORMAT_FLAG_STENCIL)};
+    case VK_FORMAT_D32_SFLOAT_S8_UINT:              return daxa_FormatInfo{2, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_DEPTH | DAXA_FORMAT_FLAG_STENCIL)};
+    // --- Block-compressed (BCn) ---
+    case VK_FORMAT_BC1_RGB_UNORM_BLOCK:             return daxa_FormatInfo{3, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_NORM)};
+    case VK_FORMAT_BC1_RGB_SRGB_BLOCK:              return daxa_FormatInfo{3, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_SRGB)};
+    case VK_FORMAT_BC1_RGBA_UNORM_BLOCK:            return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_NORM)};
+    case VK_FORMAT_BC1_RGBA_SRGB_BLOCK:             return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_SRGB)};
+    case VK_FORMAT_BC2_UNORM_BLOCK:                 return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_NORM)};
+    case VK_FORMAT_BC2_SRGB_BLOCK:                  return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_SRGB)};
+    case VK_FORMAT_BC3_UNORM_BLOCK:                 return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_NORM)};
+    case VK_FORMAT_BC3_SRGB_BLOCK:                  return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_SRGB)};
+    case VK_FORMAT_BC4_UNORM_BLOCK:                 return daxa_FormatInfo{1, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_NORM)};
+    case VK_FORMAT_BC4_SNORM_BLOCK:                 return daxa_FormatInfo{1, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_NORM | DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_BC5_UNORM_BLOCK:                 return daxa_FormatInfo{2, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_NORM)};
+    case VK_FORMAT_BC5_SNORM_BLOCK:                 return daxa_FormatInfo{2, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_NORM | DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_BC6H_UFLOAT_BLOCK:               return daxa_FormatInfo{3, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_FLOAT | DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_BC6H_SFLOAT_BLOCK:               return daxa_FormatInfo{3, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_FLOAT | DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_BC7_UNORM_BLOCK:                 return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_NORM)};
+    case VK_FORMAT_BC7_SRGB_BLOCK:                  return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_SRGB)};
+    // --- ETC2 / EAC ---
+    case VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK:         return daxa_FormatInfo{3, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_NORM)};
+    case VK_FORMAT_ETC2_R8G8B8_SRGB_BLOCK:          return daxa_FormatInfo{3, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_SRGB)};
+    case VK_FORMAT_ETC2_R8G8B8A1_UNORM_BLOCK:       return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_NORM)};
+    case VK_FORMAT_ETC2_R8G8B8A1_SRGB_BLOCK:        return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_SRGB)};
+    case VK_FORMAT_ETC2_R8G8B8A8_UNORM_BLOCK:       return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_NORM)};
+    case VK_FORMAT_ETC2_R8G8B8A8_SRGB_BLOCK:        return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_SRGB)};
+    case VK_FORMAT_EAC_R11_UNORM_BLOCK:             return daxa_FormatInfo{1, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_NORM)};
+    case VK_FORMAT_EAC_R11_SNORM_BLOCK:             return daxa_FormatInfo{1, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_NORM | DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_EAC_R11G11_UNORM_BLOCK:          return daxa_FormatInfo{2, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_NORM)};
+    case VK_FORMAT_EAC_R11G11_SNORM_BLOCK:          return daxa_FormatInfo{2, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_NORM | DAXA_FORMAT_FLAG_SIGNED)};
+    // --- ASTC (all blocks, UNORM/SRGB/SFLOAT) ---
+    case VK_FORMAT_ASTC_4x4_UNORM_BLOCK:            return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_NORM)};
+    case VK_FORMAT_ASTC_4x4_SRGB_BLOCK:             return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_SRGB)};
+    case VK_FORMAT_ASTC_5x4_UNORM_BLOCK:            return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_NORM)};
+    case VK_FORMAT_ASTC_5x4_SRGB_BLOCK:             return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_SRGB)};
+    case VK_FORMAT_ASTC_5x5_UNORM_BLOCK:            return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_NORM)};
+    case VK_FORMAT_ASTC_5x5_SRGB_BLOCK:             return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_SRGB)};
+    case VK_FORMAT_ASTC_6x5_UNORM_BLOCK:            return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_NORM)};
+    case VK_FORMAT_ASTC_6x5_SRGB_BLOCK:             return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_SRGB)};
+    case VK_FORMAT_ASTC_6x6_UNORM_BLOCK:            return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_NORM)};
+    case VK_FORMAT_ASTC_6x6_SRGB_BLOCK:             return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_SRGB)};
+    case VK_FORMAT_ASTC_8x5_UNORM_BLOCK:            return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_NORM)};
+    case VK_FORMAT_ASTC_8x5_SRGB_BLOCK:             return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_SRGB)};
+    case VK_FORMAT_ASTC_8x6_UNORM_BLOCK:            return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_NORM)};
+    case VK_FORMAT_ASTC_8x6_SRGB_BLOCK:             return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_SRGB)};
+    case VK_FORMAT_ASTC_8x8_UNORM_BLOCK:            return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_NORM)};
+    case VK_FORMAT_ASTC_8x8_SRGB_BLOCK:             return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_SRGB)};
+    case VK_FORMAT_ASTC_10x5_UNORM_BLOCK:           return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_NORM)};
+    case VK_FORMAT_ASTC_10x5_SRGB_BLOCK:            return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_SRGB)};
+    case VK_FORMAT_ASTC_10x6_UNORM_BLOCK:           return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_NORM)};
+    case VK_FORMAT_ASTC_10x6_SRGB_BLOCK:            return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_SRGB)};
+    case VK_FORMAT_ASTC_10x8_UNORM_BLOCK:           return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_NORM)};
+    case VK_FORMAT_ASTC_10x8_SRGB_BLOCK:            return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_SRGB)};
+    case VK_FORMAT_ASTC_10x10_UNORM_BLOCK:          return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_NORM)};
+    case VK_FORMAT_ASTC_10x10_SRGB_BLOCK:           return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_SRGB)};
+    case VK_FORMAT_ASTC_12x10_UNORM_BLOCK:          return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_NORM)};
+    case VK_FORMAT_ASTC_12x10_SRGB_BLOCK:           return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_SRGB)};
+    case VK_FORMAT_ASTC_12x12_UNORM_BLOCK:          return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_NORM)};
+    case VK_FORMAT_ASTC_12x12_SRGB_BLOCK:           return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_SRGB)};
+    // --- ASTC HDR (SFLOAT) ---
+    case VK_FORMAT_ASTC_4x4_SFLOAT_BLOCK:           return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_FLOAT | DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_ASTC_5x4_SFLOAT_BLOCK:           return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_FLOAT | DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_ASTC_5x5_SFLOAT_BLOCK:           return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_FLOAT | DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_ASTC_6x5_SFLOAT_BLOCK:           return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_FLOAT | DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_ASTC_6x6_SFLOAT_BLOCK:           return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_FLOAT | DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_ASTC_8x5_SFLOAT_BLOCK:           return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_FLOAT | DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_ASTC_8x6_SFLOAT_BLOCK:           return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_FLOAT | DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_ASTC_8x8_SFLOAT_BLOCK:           return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_FLOAT | DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_ASTC_10x5_SFLOAT_BLOCK:          return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_FLOAT | DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_ASTC_10x6_SFLOAT_BLOCK:          return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_FLOAT | DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_ASTC_10x8_SFLOAT_BLOCK:          return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_FLOAT | DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_ASTC_10x10_SFLOAT_BLOCK:         return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_FLOAT | DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_ASTC_12x10_SFLOAT_BLOCK:         return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_FLOAT | DAXA_FORMAT_FLAG_SIGNED)};
+    case VK_FORMAT_ASTC_12x12_SFLOAT_BLOCK:         return daxa_FormatInfo{4, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_COMPRESSED | DAXA_FORMAT_FLAG_FLOAT | DAXA_FORMAT_FLAG_SIGNED)};
+    default: return daxa_FormatInfo{0, 0, 0, static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_NONE)};
     }
 }
+// clang-format on
 
-auto is_stencil_format(Format format) -> bool
+auto daxa_is_format_depth(VkFormat format) -> daxa_Bool8
 {
-    switch (format)
-    {
-    case Format::S8_UINT: return true;
-    case Format::D16_UNORM_S8_UINT: return true;
-    case Format::D24_UNORM_S8_UINT: return true;
-    case Format::D32_SFLOAT_S8_UINT: return true;
-    default: return false;
-    }
+    return (daxa_format_info(format).flags & DAXA_FORMAT_FLAG_DEPTH) != DAXA_FORMAT_FLAG_NONE;
+}
+
+auto daxa_is_format_stencil(VkFormat format) -> daxa_Bool8
+{
+    return (daxa_format_info(format).flags & DAXA_FORMAT_FLAG_STENCIL) != DAXA_FORMAT_FLAG_NONE;
+}
+
+auto daxa_is_format_depth_stencil(VkFormat format) -> daxa_Bool8
+{
+    return (daxa_format_info(format).flags & (DAXA_FORMAT_FLAG_DEPTH | DAXA_FORMAT_FLAG_STENCIL)) != DAXA_FORMAT_FLAG_NONE;
+}
+
+auto daxa_is_format_float(VkFormat format) -> daxa_Bool8
+{
+    return (daxa_format_info(format).flags & DAXA_FORMAT_FLAG_FLOAT) != DAXA_FORMAT_FLAG_NONE;
+}
+
+auto daxa_is_format_int(VkFormat format) -> daxa_Bool8
+{
+    daxa_FormatFlags const flags = daxa_format_info(format).flags;
+    daxa_FormatFlags const non_int = static_cast<daxa_FormatFlags>(DAXA_FORMAT_FLAG_FLOAT | DAXA_FORMAT_FLAG_NORM | DAXA_FORMAT_FLAG_SRGB | DAXA_FORMAT_FLAG_SCALED);
+    return (flags & non_int) == DAXA_FORMAT_FLAG_NONE && flags != DAXA_FORMAT_FLAG_NONE;
 }
 
 auto infer_aspect_from_format(Format format) -> VkImageAspectFlags
 {
-    if (is_depth_format(format) || is_stencil_format(format))
+    VkFormat const vk_fmt = std::bit_cast<VkFormat>(format);
+    if (daxa_is_format_depth_stencil(vk_fmt))
     {
-        return (is_depth_format(format) ? VK_IMAGE_ASPECT_DEPTH_BIT : 0) | (is_stencil_format(format) ? VK_IMAGE_ASPECT_STENCIL_BIT : 0);
+        return (daxa_is_format_depth(vk_fmt) ? VK_IMAGE_ASPECT_DEPTH_BIT : 0u) | (daxa_is_format_stencil(vk_fmt) ? VK_IMAGE_ASPECT_STENCIL_BIT : 0u);
     }
     return VK_IMAGE_ASPECT_COLOR_BIT;
 }
@@ -61,64 +300,70 @@ auto make_subresource_layers(ImageArraySlice const & slice, VkImageAspectFlags a
         .layerCount = slice.layer_count,
     };
 }
-auto create_surface(daxa_Instance instance, daxa_NativeWindowHandle handle, [[maybe_unused]] daxa_NativeWindowPlatform platform, VkSurfaceKHR * out_surface) -> daxa_Result
+auto create_surface(daxa_Instance instance, daxa_NativeWindowInfo native_window_info, VkSurfaceKHR * out_surface) -> daxa_Result
 {
+    NativeWindowInfo native_window_info_cpp = std::bit_cast<NativeWindowInfo>(native_window_info);
 #if defined(_WIN32)
-    VkWin32SurfaceCreateInfoKHR const surface_ci{
-        .sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,
-        .pNext = nullptr,
-        .flags = 0,
-        .hinstance = GetModuleHandleA(nullptr),
-        .hwnd = static_cast<HWND>(handle),
-    };
+    if (NativeWindowInfoWin32* win32_info = daxa::get_if<NativeWindowInfoWin32>(&native_window_info_cpp))
     {
-        auto func = reinterpret_cast<PFN_vkCreateWin32SurfaceKHR>(vkGetInstanceProcAddr(instance->vk_instance, "vkCreateWin32SurfaceKHR"));
-        VkResult const vk_result = func(instance->vk_instance, &surface_ci, nullptr, out_surface);
-        return std::bit_cast<daxa_Result>(vk_result);
-    }
-#elif defined(__linux__)
-    switch (std::bit_cast<daxa::NativeWindowPlatform>(platform))
-    {
-#if DAXA_BUILT_WITH_WAYLAND
-    case NativeWindowPlatform::WAYLAND_API:
-    {
-        // TODO(grundlett): figure out how to link Wayland
-        VkWaylandSurfaceCreateInfoKHR surface_ci{
-            .sType = VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR,
+        VkWin32SurfaceCreateInfoKHR const surface_ci{
+            .sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,
             .pNext = nullptr,
             .flags = 0,
-            .display = wl_display_connect(nullptr),
-            .surface = static_cast<wl_surface *>(handle),
+            .hinstance = GetModuleHandleA(nullptr),
+            .hwnd = static_cast<HWND>(win32_info->hwnd),
         };
         {
-            auto func = reinterpret_cast<PFN_vkCreateWaylandSurfaceKHR>(vkGetInstanceProcAddr(instance->vk_instance, "vkCreateWaylandSurfaceKHR"));
-            VkResult vk_result = func(instance->vk_instance, &surface_ci, nullptr, out_surface);
-            return std::bit_cast<daxa_Result>(vk_result);
+            auto func = reinterpret_cast<PFN_vkCreateWin32SurfaceKHR>(vkGetInstanceProcAddr(instance->vk_instance, "vkCreateWin32SurfaceKHR"));
+            auto result = static_cast<daxa_Result>(func(instance->vk_instance, &surface_ci, nullptr, out_surface));
+            _DAXA_RETURN_IF_ERROR(result, result);
+            return result;
         }
     }
-    break;
-#endif
+#elif defined(__linux__) // #if defined(_WIN32)
 #if DAXA_BUILT_WITH_X11
-    case NativeWindowPlatform::XLIB_API:
-    default:
+    if (NativeWindowInfoXlib* xlib_info = daxa::get_if<NativeWindowInfoXlib>(&native_window_info_cpp))
     {
         VkXlibSurfaceCreateInfoKHR surface_ci{
             .sType = VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR,
             .pNext = nullptr,
             .flags = 0,
             .dpy = XOpenDisplay(nullptr),
-            .window = reinterpret_cast<Window>(handle),
+            .window = reinterpret_cast<Window>(xlib_info->window),
         };
         {
             auto func = reinterpret_cast<PFN_vkCreateXlibSurfaceKHR>(vkGetInstanceProcAddr(instance->vk_instance, "vkCreateXlibSurfaceKHR"));
-            VkResult vk_result = func(instance->vk_instance, &surface_ci, nullptr, out_surface);
-            return std::bit_cast<daxa_Result>(vk_result);
+            auto result = static_cast<daxa_Result>(func(instance->vk_instance, &surface_ci, nullptr, out_surface));
+            _DAXA_RETURN_IF_ERROR(result, result);
+            return result;
         }
     }
-    break;
+#endif // #if DAXA_BUILT_WITH_X11
+#if DAXA_BUILT_WITH_WAYLAND
+    if (NativeWindowInfoWayland* wayland_info = daxa::get_if<NativeWindowInfoWayland>(&native_window_info_cpp))
+    {
+        VkWaylandSurfaceCreateInfoKHR surface_ci{
+            .sType = VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR,
+            .pNext = nullptr,
+            .flags = 0,
+            .display = static_cast<wl_display*>(wayland_info->display),
+            .surface = static_cast<wl_surface*>(wayland_info->surface),
+        };
+
+        PFN_vkCreateWaylandSurfaceKHR createSurfaceWaylandFunc = reinterpret_cast<PFN_vkCreateWaylandSurfaceKHR>(vkGetInstanceProcAddr(instance->vk_instance, "vkCreateWaylandSurfaceKHR"));
+
+        if (createSurfaceWaylandFunc == nullptr) 
+        {
+            _DAXA_RETURN_IF_ERROR(DAXA_RESULT_ERROR_WAYLAND_FAILED_TO_CREATE_SURFACE, DAXA_RESULT_ERROR_WAYLAND_FAILED_TO_CREATE_SURFACE);
+        }
+
+        auto result = static_cast<daxa_Result>(createSurfaceWaylandFunc(instance->vk_instance, &surface_ci, nullptr, out_surface));
+        _DAXA_RETURN_IF_ERROR(result, result);
+        return result;
     }
-#endif
-#endif
+#endif // #if DAXA_BUILT_WITH_WAYLAND
+#endif // #elif defined(__linux__) // #if defined(_WIN32)
+    return DAXA_RESULT_ERROR_UNKNOWN;
 }
 
 #define DAXA_ASSIGN_ARRAY_3(SRC) \
@@ -129,28 +374,29 @@ auto construct_daxa_physical_device_properties(VkPhysicalDevice physical_device)
     daxa_DeviceProperties ret = {};
 
     bool ray_tracing_pipeline_supported = false;
-    VkPhysicalDeviceRayTracingPipelinePropertiesKHR vk_physical_device_ray_tracing_pipeline_properties_khr = {
-        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR,
-        .pNext = nullptr,
-    };
+    VkPhysicalDeviceRayTracingPipelinePropertiesKHR vk_physical_device_ray_tracing_pipeline_properties_khr = {};
+    vk_physical_device_ray_tracing_pipeline_properties_khr.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR;
+    vk_physical_device_ray_tracing_pipeline_properties_khr.pNext = nullptr;
 
     bool acceleration_structure_supported = false;
-    VkPhysicalDeviceAccelerationStructurePropertiesKHR vk_physical_device_acceleration_structure_properties_khr = {
-        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR,
-        .pNext = nullptr,
-    };
+    VkPhysicalDeviceAccelerationStructurePropertiesKHR vk_physical_device_acceleration_structure_properties_khr = {};
+    vk_physical_device_acceleration_structure_properties_khr.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR;
+    vk_physical_device_acceleration_structure_properties_khr.pNext = nullptr;
 
     bool invocation_reorder_supported = false;
-    VkPhysicalDeviceRayTracingInvocationReorderPropertiesNV vk_physical_device_ray_tracing_invocation_reorder_properties_nv = {
-        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_INVOCATION_REORDER_PROPERTIES_NV,
-        .pNext = nullptr,
-    };
+    VkPhysicalDeviceRayTracingInvocationReorderPropertiesNV vk_physical_device_ray_tracing_invocation_reorder_properties_nv = {};
+    vk_physical_device_ray_tracing_invocation_reorder_properties_nv.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_INVOCATION_REORDER_PROPERTIES_NV;
+    vk_physical_device_ray_tracing_invocation_reorder_properties_nv.pNext = nullptr;
 
     bool mesh_shader_supported = false;
-    VkPhysicalDeviceMeshShaderPropertiesEXT vk_physical_device_mesh_shader_properties_ext = {
-        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_PROPERTIES_EXT,
-        .pNext = nullptr,
-    };
+    VkPhysicalDeviceMeshShaderPropertiesEXT vk_physical_device_mesh_shader_properties_ext = {};
+    vk_physical_device_mesh_shader_properties_ext.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_PROPERTIES_EXT;
+    vk_physical_device_mesh_shader_properties_ext.pNext = nullptr;
+
+    bool host_image_copy_supported = false;
+    VkPhysicalDeviceHostImageCopyPropertiesEXT vk_physical_device_host_image_copy_properties_ext = {};
+    vk_physical_device_host_image_copy_properties_ext.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_HOST_IMAGE_COPY_PROPERTIES_EXT;
+    vk_physical_device_host_image_copy_properties_ext.pNext = nullptr;
 
     void * pNextChain = nullptr;
 
@@ -184,19 +430,26 @@ auto construct_daxa_physical_device_properties(VkPhysicalDevice physical_device)
             vk_physical_device_mesh_shader_properties_ext.pNext = pNextChain;
             pNextChain = &vk_physical_device_mesh_shader_properties_ext;
         }
+        if (std::strcmp(extension.extensionName, VK_EXT_HOST_IMAGE_COPY_EXTENSION_NAME) == 0)
+        {
+            host_image_copy_supported = true;
+            vk_physical_device_host_image_copy_properties_ext.pNext = pNextChain;
+            pNextChain = &vk_physical_device_host_image_copy_properties_ext;
+        }
     }
 
-    VkPhysicalDeviceProperties2 vk_physical_device_properties2 = {
-        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
-        .pNext = pNextChain,
-    };
+    VkPhysicalDeviceProperties2 vk_physical_device_properties2 = {};
+    vk_physical_device_properties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+    vk_physical_device_properties2.pNext = pNextChain;
 
     vkGetPhysicalDeviceProperties2(physical_device, &vk_physical_device_properties2);
     // physical device properties are ABI compatible UP TO the mesh_shader_properties field.
+    static_assert(offsetof(daxa_DeviceProperties, mesh_shader_properties) == offsetof(VkPhysicalDeviceProperties, sparseProperties));
     std::memcpy(
         &ret,
-        r_cast<std::byte const *>(&vk_physical_device_properties2) + sizeof(void *) * 2 /* skip sType and pNext */,
+        r_cast<std::byte const *>(&vk_physical_device_properties2) + sizeof(void *) * 2, // skip sType and pNext
         offsetof(daxa_DeviceProperties, mesh_shader_properties));
+
     if (ray_tracing_pipeline_supported)
     {
         ret.ray_tracing_pipeline_properties.has_value = 1;
@@ -233,18 +486,28 @@ auto construct_daxa_physical_device_properties(VkPhysicalDevice physical_device)
         ret.mesh_shader_properties.value.prefers_compact_vertex_output = static_cast<daxa_Bool8>(vk_physical_device_mesh_shader_properties_ext.prefersCompactVertexOutput);
         ret.mesh_shader_properties.value.prefers_compact_primitive_output = static_cast<daxa_Bool8>(vk_physical_device_mesh_shader_properties_ext.prefersCompactPrimitiveOutput);
     }
+    if (host_image_copy_supported)
+    {
+        ret.host_image_copy_properties.has_value = 1;
+        // skip not just sType and pNext, but also the src and dst image layout arrays.
+        std::memcpy(
+            &ret.host_image_copy_properties.value.optimal_tiling_layout_uuid[0],
+            r_cast<std::byte const *>(&vk_physical_device_host_image_copy_properties_ext.optimalTilingLayoutUUID[0]),
+            sizeof(daxa_HostImageCopyProperties::optimal_tiling_layout_uuid));
+        ret.host_image_copy_properties.value.identical_memory_type_requirements = static_cast<daxa_Bool8>(vk_physical_device_host_image_copy_properties_ext.identicalMemoryTypeRequirements);
+    }
 
-    u32 queue_family_props_count = 0;
+    u32 queue_type_props_count = 0;
     std::vector<VkQueueFamilyProperties> queue_props;
-    vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_family_props_count, nullptr);
-    queue_props.resize(queue_family_props_count);
-    vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_family_props_count, queue_props.data());
+    vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_type_props_count, nullptr);
+    queue_props.resize(queue_type_props_count);
+    vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &queue_type_props_count, queue_props.data());
     std::vector<VkBool32> supports_present;
-    supports_present.resize(queue_family_props_count);
+    supports_present.resize(queue_type_props_count);
 
     ret.compute_queue_count = ~0u;
     ret.transfer_queue_count = ~0u;
-    for (u32 i = 0; i < queue_family_props_count; i++)
+    for (u32 i = 0; i < queue_type_props_count; i++)
     {
         bool const supports_graphics = queue_props[i].queueFlags & VK_QUEUE_GRAPHICS_BIT;
         bool const supports_compute = queue_props[i].queueFlags & VK_QUEUE_COMPUTE_BIT;
@@ -333,11 +596,11 @@ void daxa_as_build_info_to_vk(
             .mode = info.update ? VK_BUILD_ACCELERATION_STRUCTURE_MODE_UPDATE_KHR : VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR,
             .srcAccelerationStructure =
                 info.src_tlas.value != 0
-                    ? device->slot(info.src_tlas).vk_acceleration_structure
+                    ? device->hot_slot(info.src_tlas).vk_acceleration_structure
                     : nullptr,
             .dstAccelerationStructure =
                 info.dst_tlas.value != 0
-                    ? device->slot(info.dst_tlas).vk_acceleration_structure
+                    ? device->hot_slot(info.dst_tlas).vk_acceleration_structure
                     : nullptr,
             .geometryCount = info.instance_count,
             .pGeometries = vk_geo_array_ptr,
@@ -355,10 +618,9 @@ void daxa_as_build_info_to_vk(
         u32 const geo_count = static_cast<u32>(info.geometries.values.triangles.count);
         for (u32 geo_i = 0; geo_i < geo_count; ++geo_i)
         {
-            auto geo_info = VkAccelerationStructureGeometryKHR{
-                .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
-                .pNext = nullptr,
-            };
+            VkAccelerationStructureGeometryKHR geo_info = {};
+            geo_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
+            geo_info.pNext = nullptr;
             if (info.geometries.index == 0) // triangles
             {
                 geo_info.geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR,
@@ -398,11 +660,11 @@ void daxa_as_build_info_to_vk(
             .mode = info.update ? VK_BUILD_ACCELERATION_STRUCTURE_MODE_UPDATE_KHR : VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR,
             .srcAccelerationStructure =
                 info.src_blas.value != 0
-                    ? device->slot(info.src_blas).vk_acceleration_structure
+                    ? device->hot_slot(info.src_blas).vk_acceleration_structure
                     : nullptr,
             .dstAccelerationStructure =
                 info.dst_blas.value != 0
-                    ? device->slot(info.dst_blas).vk_acceleration_structure
+                    ? device->hot_slot(info.dst_blas).vk_acceleration_structure
                     : nullptr,
             .geometryCount = geo_count,
             .pGeometries = vk_geo_array_ptr,
@@ -417,49 +679,49 @@ void daxa_as_build_info_to_vk(
 
 // --- Begin API Functions
 
-auto daxa_default_view(daxa_ImageId id) -> daxa_ImageViewId
+auto daxa_default_view(daxa_ImageId image) -> daxa_ImageViewId
 {
-    return daxa_ImageViewId{.value = id.value};
+    return daxa_ImageViewId{.value = image.value};
 }
 
-auto daxa_index_of_buffer(daxa_BufferId id) -> u32
+auto daxa_index_of_buffer(daxa_BufferId buffer) -> u32
 {
-    return static_cast<u32>(id.value & mask_from_bit_count(DAXA_ID_INDEX_BITS));
+    return static_cast<u32>(buffer.value & mask_from_bit_count(DAXA_ID_INDEX_BITS));
 }
 
-auto daxa_index_of_image(daxa_ImageId id) -> u32
+auto daxa_index_of_image(daxa_ImageId image) -> u32
 {
-    return static_cast<u32>(id.value & mask_from_bit_count(DAXA_ID_INDEX_BITS));
+    return static_cast<u32>(image.value & mask_from_bit_count(DAXA_ID_INDEX_BITS));
 }
 
-auto daxa_index_of_image_view(daxa_ImageViewId id) -> u32
+auto daxa_index_of_image_view(daxa_ImageViewId image_view) -> u32
 {
-    return static_cast<u32>(id.value & mask_from_bit_count(DAXA_ID_INDEX_BITS));
+    return static_cast<u32>(image_view.value & mask_from_bit_count(DAXA_ID_INDEX_BITS));
 }
 
-auto daxa_index_of_sampler(daxa_SamplerId id) -> u32
+auto daxa_index_of_sampler(daxa_SamplerId sampler) -> u32
 {
-    return static_cast<u32>(id.value & mask_from_bit_count(DAXA_ID_INDEX_BITS));
+    return static_cast<u32>(sampler.value & mask_from_bit_count(DAXA_ID_INDEX_BITS));
 }
 
-auto daxa_version_of_buffer(daxa_BufferId id) -> u64
+auto daxa_version_of_buffer(daxa_BufferId buffer) -> u64
 {
-    return (id.value >> DAXA_ID_VERSION_OFFSET) & mask_from_bit_count(DAXA_ID_VERSION_BITS);
+    return (buffer.value >> DAXA_ID_VERSION_OFFSET) & mask_from_bit_count(DAXA_ID_VERSION_BITS);
 }
 
-auto daxa_version_of_image(daxa_ImageId id) -> u64
+auto daxa_version_of_image(daxa_ImageId image) -> u64
 {
-    return (id.value >> DAXA_ID_VERSION_OFFSET) & mask_from_bit_count(DAXA_ID_VERSION_BITS);
+    return (image.value >> DAXA_ID_VERSION_OFFSET) & mask_from_bit_count(DAXA_ID_VERSION_BITS);
 }
 
-auto daxa_version_of_image_view(daxa_ImageViewId id) -> u64
+auto daxa_version_of_image_view(daxa_ImageViewId image_view) -> u64
 {
-    return (id.value >> DAXA_ID_VERSION_OFFSET) & mask_from_bit_count(DAXA_ID_VERSION_BITS);
+    return (image_view.value >> DAXA_ID_VERSION_OFFSET) & mask_from_bit_count(DAXA_ID_VERSION_BITS);
 }
 
-auto daxa_version_of_sampler(daxa_SamplerId id) -> u64
+auto daxa_version_of_sampler(daxa_SamplerId sampler) -> u64
 {
-    return (id.value >> DAXA_ID_VERSION_OFFSET) & mask_from_bit_count(DAXA_ID_VERSION_BITS);
+    return (sampler.value >> DAXA_ID_VERSION_OFFSET) & mask_from_bit_count(DAXA_ID_VERSION_BITS);
 }
 
 // --- End API Functions
@@ -498,14 +760,12 @@ auto ImplHandle::get_refcnt() const -> u64
 
 auto ImplHandle::impl_inc_weak_refcnt([[maybe_unused]] char const * callsite) const -> u64
 {
-    _DAXA_TEST_PRINT("called \"inc_weak_refcnt\" in \"%s\"\n", callsite);
     auto & mut_weak_ref = this->weak_count;
     return std::atomic_ref{mut_weak_ref}.fetch_add(1, std::memory_order::relaxed);
 }
 
 auto ImplHandle::impl_dec_weak_refcnt(void (*zero_ref_callback)(ImplHandle const *), daxa_Instance /*unused*/, [[maybe_unused]] char const * callsite) const -> u64
 {
-    _DAXA_TEST_PRINT("called \"dec_weak_refcnt\" in \"%s\"\n", callsite);
     auto & mut_weak_ref = this->weak_count;
     auto prev = std::atomic_ref{mut_weak_ref}.fetch_sub(1, std::memory_order::relaxed);
     if (prev == 1)
@@ -532,30 +792,43 @@ auto daxa_dvc_create_memory(daxa_Device self, daxa_MemoryBlockInfo const * info,
 {
     daxa_ImplMemoryBlock ret = {};
     ret.device = self;
-    ret.info = std::bit_cast<daxa::MemoryBlockInfo>(*info);
+    ret.info = *info;
 
     if (info->requirements.memoryTypeBits == 0)
     {
-        // TODO(capi): This should not be here, the point is to return an error!
-        // DAXA_DBG_ASSERT_TRUE_M(false, "memory_type_bits must be non zero");
-        return DAXA_RESULT_ERROR_UNKNOWN;
+        _DAXA_RETURN_IF_ERROR(DAXA_RESULT_ERROR_ZERO_REQUIRED_MEMORY_TYPE_BITS, DAXA_RESULT_ERROR_ZERO_REQUIRED_MEMORY_TYPE_BITS)
+    }
+
+    VkMemoryPropertyFlags required_properties = {};
+    daxa_MemoryFlags vma_allocation_flags = info->flags;
+    if (((vma_allocation_flags & DAXA_MEMORY_FLAG_HOST_ACCESS_RANDOM) != 0u) ||
+        ((vma_allocation_flags & DAXA_MEMORY_FLAG_HOST_ACCESS_SEQUENTIAL_WRITE) != 0u))
+    {
+        vma_allocation_flags |= VMA_ALLOCATION_CREATE_MAPPED_BIT;
+        required_properties |= VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+
+        if ((vma_allocation_flags & DAXA_MEMORY_FLAG_HOST_ACCESS_SEQUENTIAL_WRITE) != 0u)
+        {
+            required_properties |= VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+        }
+    }
+    else
+    {
+        required_properties |= VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
     }
 
     VmaAllocationCreateInfo const create_info{
-        .flags = info->flags,
-        .usage = VMA_MEMORY_USAGE_GPU_ONLY,
-        .requiredFlags = {}, // TODO: idk what this is...
+        .flags = vma_allocation_flags,
+        .usage = VMA_MEMORY_USAGE_UNKNOWN,
+        .requiredFlags = required_properties,
         .preferredFlags = {},
-        .memoryTypeBits = {}, // TODO: idk what this is....
+        .memoryTypeBits = info->requirements.memoryTypeBits,
         .pool = {},
         .pUserData = {},
         .priority = 0.5f,
     };
-    auto result = vmaAllocateMemory(self->vma_allocator, &info->requirements, &create_info, &ret.allocation, &ret.alloc_info);
-    if (result != VK_SUCCESS)
-    {
-        return std::bit_cast<daxa_Result>(result);
-    }
+    auto result = static_cast<daxa_Result>(vmaAllocateMemory(self->vma_allocator, &info->requirements, &create_info, &ret.allocation, &ret.alloc_info));
+    _DAXA_RETURN_IF_ERROR(result, result)
 
     ret.strong_count = 1;
     self->inc_weak_refcnt();
