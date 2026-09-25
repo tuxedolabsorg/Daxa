@@ -29,7 +29,6 @@ struct Push
 #include <utility>
 #include <algorithm>
 #include <iostream>
-#include <implot.h>
 
 void set_imgui_style()
 {
@@ -478,15 +477,6 @@ namespace daxa
         {
             ImGui::SetCurrentContext(this->info.imgui_context);
         }
-        if (this->info.implot_context != nullptr)
-        {
-            ImPlot::SetCurrentContext(this->info.implot_context);
-        }
-        else
-        {
-            ImPlot::CreateContext();
-        }
-
         if (this->info.use_custom_config)
         {
             set_imgui_style();

@@ -76,33 +76,6 @@ if (DAXA_ENABLE_UTILS_IMGUI AND NOT TARGET imgui::imgui)
     endif()
 endif()
 
-if (DAXA_ENABLE_UTILS_IMGUI AND NOT TARGET implot::implot)
-    FetchContent_Declare(
-        implot
-        GIT_REPOSITORY https://github.com/epezent/implot
-        GIT_TAG        v1.0
-        EXCLUDE_FROM_ALL
-    )
-
-    FetchContent_GetProperties(implot)
-    if(NOT implot_POPULATED)
-        FetchContent_MakeAvailable(implot)
-
-        add_library(lib_implot
-            ${implot_SOURCE_DIR}/implot.cpp
-            ${implot_SOURCE_DIR}/implot_items.cpp
-            ${implot_SOURCE_DIR}/implot_demo.cpp)
-
-        target_include_directories(lib_implot SYSTEM PUBLIC ${implot_SOURCE_DIR})
-        if(NOT (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC"))
-            target_compile_options(lib_implot PRIVATE -Wno-nontrivial-memcall)
-        endif()
-        target_link_libraries(lib_implot PRIVATE imgui::imgui)
-
-        add_library(implot::implot ALIAS lib_implot)
-    endif()
-endif()
-
 if (DAXA_ENABLE_UTILS_PIPELINE_MANAGER_SLANG AND NOT TARGET slang::slang)
     set(Slang_VERSION "2025.11")
     FetchContent_Declare(
