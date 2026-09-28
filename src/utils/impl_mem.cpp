@@ -94,7 +94,8 @@ namespace daxa
                 return std::nullopt;
             }
         }
-        u64 const current_timeline_value = m_info.device.latest_submit_index();
+        // Allocations are consumed by the next submit, not the latest one that was already submitted.
+        u64 const current_timeline_value = m_info.device.latest_submit_index() + 1;
         u32 returned_allocation_offset = {};
         u32 actual_allocation_offset = {};
         u32 actual_allocation_size = {};
@@ -133,8 +134,16 @@ namespace daxa
 
     void RingBuffer::reclaim_memory()
     {
-        auto const current_gpu_submit_index_value = this->m_info.device.oldest_pending_submit_index();
-        while (!live_allocations.empty() && live_allocations.front().submit_index <= current_gpu_submit_index_value)
+        // Latest submit index that completed execution. Read the latest submit first, so that if nothing is pending
+        // afterwards, every submit up to it is known to be complete. oldest_pending_submit_index returns the latest completed
+        // submit while submits are pending and ~0 when none are, which would also free allocations that are not yet submitted.
+        u64 const latest_submit_index = this->m_info.device.latest_submit_index();
+        u64 completed_submit_index = this->m_info.device.oldest_pending_submit_index();
+        if (completed_submit_index == std::numeric_limits<u64>::max())
+        {
+            completed_submit_index = latest_submit_index;
+        }
+        while (!live_allocations.empty() && live_allocations.front().submit_index <= completed_submit_index)
         {
             this->claimed_start = (this->claimed_start + live_allocations.front().size) % this->m_info.capacity;
             this->claimed_size -= live_allocations.front().size;

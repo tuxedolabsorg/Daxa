@@ -287,6 +287,8 @@ namespace daxa
         static inline constexpr ImplicitFeatureFlags SHADER_CLOCK = {0x1 << 14};
         static inline constexpr ImplicitFeatureFlags HOST_IMAGE_COPY = {0x1 << 15};
         static inline constexpr ImplicitFeatureFlags LINE_RASTERIZATION = {0x1 << 16};
+        static inline constexpr ImplicitFeatureFlags PRESENT_WAIT = {0x1 << 17};
+        static inline constexpr ImplicitFeatureFlags CALIBRATED_TIMESTAMPS = {0x1 << 18};
     };
 
     struct DeviceProperties

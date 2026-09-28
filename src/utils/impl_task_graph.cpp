@@ -239,6 +239,18 @@ namespace daxa
     /// ==== GENERAL TYPE CONVERSION ====
     /// =================================
 
+    // A double buffer resource only counts as unused when BOTH pair members are unused, so a
+    // back buffer whose primary is used is still allocated to preserve its cross-frame contents.
+    auto is_resource_unused(ImplTaskResource const & resource) -> bool
+    {
+        bool unused = resource.access_timeline.size() == 0;
+        if (unused && resource.double_buffer_pair_resource.first != nullptr)
+        {
+            unused = resource.double_buffer_pair_resource.first->access_timeline.size() == 0;
+        }
+        return unused;
+    }
+
     auto task_type_default_stage(TaskType task_type) -> TaskStages
     {
         switch (task_type)
@@ -1004,7 +1016,7 @@ namespace daxa
         image.name = name;
         image.external = external;
         image.id = {};   // Set in execution preparation.
-        image.info = {}; // Set in execution preparation.
+        image.info = { .image = {} }; // Set in execution preparation. Initialize the image member of the union, {} would only initialize the buffer member
         image.lifetime_type = TaskResourceLifetimeType::EXTERNAL;
         impl.resources.push_back(image);
         u32 const index = static_cast<u32>(impl.resources.size()) - 1u;
@@ -1081,8 +1093,13 @@ namespace daxa
         image.kind = TaskResourceKind::IMAGE;
         image.external = {};
         image.id = {}; // Set in transient resource creation.
-        image.info = {};
+        image.info = { .image = {} }; // Initialize the image member of the union, {} would only initialize the buffer member
         image.lifetime_type = info.lifetime_type;
+        if (info.lifetime_type != TaskResourceLifetimeType::TRANSIENT)
+        {
+            // Persistent images are cleared by the graph itself before their first use.
+            image.info.image.usage = ImageUsageFlagBits::TRANSFER_DST;
+        }
         image.info.image.dimensions = info.dimensions;
         image.info.image.format = info.format;
         image.info.image.size = info.size;
@@ -2243,8 +2260,11 @@ namespace daxa
             if (back_buffer_resource)
             {
                 resource->queue_bits = resource->queue_bits | back_buffer_resource->queue_bits;
-                resource->info.image.flags = resource->info.image.flags | back_buffer_resource->info.image.flags;
-                resource->info.image.usage = resource->info.image.usage | back_buffer_resource->info.image.usage;
+                if (resource->kind == TaskResourceKind::IMAGE)
+                {
+                    resource->info.image.flags = resource->info.image.flags | back_buffer_resource->info.image.flags;
+                    resource->info.image.usage = resource->info.image.usage | back_buffer_resource->info.image.usage;
+                }
             }
         }
 
@@ -2545,7 +2565,7 @@ namespace daxa
         for (u32 r = 0; r < impl.resources.size(); ++r)
         {
             ImplTaskResource & resource = impl.resources[r];
-            if (resource.external)
+            if (resource.external || is_resource_unused(resource))
             {
                 continue;
             }
@@ -2567,7 +2587,8 @@ namespace daxa
                     .mip_level_count = resource.info.image.mip_level_count,
                     .array_layer_count = resource.info.image.array_layer_count,
                     .sample_count = resource.info.image.sample_count,
-                    .usage = resource.info.image.usage,
+                    // Must match the usage the image is created with, as the requirements decide its place in the memory block.
+                    .usage = resource.info.image.usage | impl.info.additional_image_usage_flags,
                 });
             }
             impl.resources[r].allocation_size = new_allocation_memory_requirements.size;
@@ -2836,17 +2857,8 @@ namespace daxa
         {
             ImplTaskResource & resource = impl.resources[r];
 
-            // Skip unused persistent resources entirely: they need neither allocation nor creation.
-            // A double buffer resource only counts as unused when BOTH pair members are unused, so a
-            // back buffer whose primary is used is still allocated to preserve its cross-frame contents.
-            bool persistent_and_unused = resource.lifetime_type != TaskResourceLifetimeType::TRANSIENT &&
-                                         resource.access_timeline.size() == 0;
-            if (persistent_and_unused && resource.double_buffer_pair_resource.first != nullptr)
-            {
-                persistent_and_unused = resource.double_buffer_pair_resource.first->access_timeline.size() == 0;
-            }
-
-            if (resource.external == nullptr && !persistent_and_unused)
+            // Skip unused resources entirely: they need neither allocation nor creation.
+            if (resource.external == nullptr && !is_resource_unused(resource))
             {
                 non_external_resources_sorted_by_lifetime[non_external_resources_count++] = &resource;
             }
@@ -3401,7 +3413,12 @@ namespace daxa
         /// ==== CREATE EXTERNAL/DOUBLE_BUFFER RESOURCE LISTS +++ CREATE AND INITIALIZE RESOURCE CLEAR REQUESTS ====
         /// ========================================================================================================
 
-        u32 external_resource_count = static_cast<u32>(impl.resources.size()) - non_external_resources_count;
+        // Count directly, unused non external resources are not part of non_external_resources_count.
+        u32 external_resource_count = 0;
+        for (u32 r = 0; r < impl.resources.size(); ++r)
+        {
+            external_resource_count += impl.resources[r].external != nullptr ? 1u : 0u;
+        }
         impl.external_resources = impl.task_memory.allocate_trivial_span<std::pair<ImplTaskResource *, u32>>(external_resource_count);
         u32 tmp_current_external_resource = 0;
 

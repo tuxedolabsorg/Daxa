@@ -62,6 +62,10 @@ namespace daxa
             physical_device_shader_clock_khr,
             physical_device_host_image_copy_ext,
             physical_device_line_rasterization_khr,
+            // Used by DLSS
+            physical_device_push_descriptor_khr,
+            physical_device_binary_import_nvx,
+            physical_device_image_view_handle_nvx,
             // Used for frame pacing/latency profiling
             physical_device_present_id_khr,
             physical_device_present_wait_khr,
@@ -89,6 +93,10 @@ namespace daxa
             VK_KHR_SHADER_CLOCK_EXTENSION_NAME,
             VK_EXT_HOST_IMAGE_COPY_EXTENSION_NAME,
             VK_KHR_LINE_RASTERIZATION_EXTENSION_NAME,
+            // Used by DLSS
+            VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME,
+            VK_NVX_BINARY_IMPORT_EXTENSION_NAME,
+            VK_NVX_IMAGE_VIEW_HANDLE_EXTENSION_NAME,
             // Used for frame pacing/latency profiling
             VK_KHR_PRESENT_ID_EXTENSION_NAME,
             VK_KHR_PRESENT_WAIT_EXTENSION_NAME,
