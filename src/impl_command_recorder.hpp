@@ -10,7 +10,7 @@ using namespace daxa;
 
 struct ImplDevice;
 
-static inline constexpr usize DAXA_MAX_COMMAND_POOLS = 128u;
+static inline constexpr usize DAXA_MAX_COMMAND_POOLS = 1024u;
 
 static inline constexpr u8 DEFERRED_DESTRUCTION_BUFFER_INDEX = 0u;
 static inline constexpr u8 DEFERRED_DESTRUCTION_IMAGE_INDEX = 1u;

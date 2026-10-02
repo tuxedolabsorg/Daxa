@@ -84,12 +84,12 @@ namespace daxa
         bool zero_offset_allocation_possible = calc_zero_offset_allocation_possible();
         if (!tail_allocation_possible && !zero_offset_allocation_possible)
         {
-            if (try_again_on_fail)
-            {
-                this->reclaim_memory();
-                return this->allocate_internal(allocation_size, alignment_requirement, false);
-            }
-            else
+            // if (try_again_on_fail)
+            // {
+            //     this->reclaim_memory();
+            //     return this->allocate_internal(allocation_size, alignment_requirement, false);
+            // }
+            // else
             {
                 return std::nullopt;
             }
