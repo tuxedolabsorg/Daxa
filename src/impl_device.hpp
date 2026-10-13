@@ -47,7 +47,7 @@ struct daxa_ImplDevice final : public ImplHandle
     PFN_vkCmdEndDebugUtilsLabelEXT vkCmdEndDebugUtilsLabelEXT = {};
 
     // Present wait:
-    PFN_vkWaitForPresentKHR vkWaitForPresentKHR = {};
+    PFN_vkWaitForPresent2KHR vkWaitForPresent2KHR = {};
 
     // Null when calibrated timestamps are unsupported or the device/host time domains are not calibrateable.
     PFN_vkGetCalibratedTimestampsKHR vkGetCalibratedTimestampsKHR = {};

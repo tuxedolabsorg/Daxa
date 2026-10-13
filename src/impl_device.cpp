@@ -1666,15 +1666,16 @@ auto daxa_dvc_present_frame(daxa_Device self, daxa_PresentInfo const * info) -> 
         submit_semaphore_waits.push_back(binary_semaphore->vk_semaphore);
     }
 
-    // Tag every present with an increasing id so present timing can be observed with vkWaitForPresentKHR.
+    // Tag every present with an increasing id so present timing can be observed with vkWaitForPresent2KHR.
     u64 const present_id = info->swapchain->present_id_counter + 1;
-    VkPresentIdKHR const present_id_info{
-        .sType = VK_STRUCTURE_TYPE_PRESENT_ID_KHR,
+    VkPresentId2KHR const present_id_info{
+        .sType = VK_STRUCTURE_TYPE_PRESENT_ID_2_KHR,
         .pNext = nullptr,
         .swapchainCount = 1,
         .pPresentIds = &present_id,
     };
-    bool const use_present_id = (self->properties.implicit_features & DAXA_IMPLICIT_FEATURE_FLAG_PRESENT_WAIT) != 0;
+    // Ids are only legal on a swapchain that was created for them.
+    bool const use_present_id = info->swapchain->present_wait_supported;
 
     VkPresentInfoKHR const present_info{
         .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
@@ -2191,7 +2192,7 @@ auto daxa_ImplDevice::create_2(daxa_Instance instance, daxa_DeviceInfo2 const & 
 
         if (properties.implicit_features & DAXA_IMPLICIT_FEATURE_FLAG_PRESENT_WAIT)
         {
-            self->vkWaitForPresentKHR = r_cast<PFN_vkWaitForPresentKHR>(vkGetDeviceProcAddr(self->vk_device, "vkWaitForPresentKHR"));
+            self->vkWaitForPresent2KHR = r_cast<PFN_vkWaitForPresent2KHR>(vkGetDeviceProcAddr(self->vk_device, "vkWaitForPresent2KHR"));
         }
 
         if (properties.implicit_features & DAXA_IMPLICIT_FEATURE_FLAG_CALIBRATED_TIMESTAMPS)

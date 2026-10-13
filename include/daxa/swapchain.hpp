@@ -99,10 +99,12 @@ namespace daxa
         [[nodiscard]] auto current_timeline_pair() const -> std::pair<TimelineSemaphore, u64>;
         /// @brief  Id of the most recent present on this swapchain that reached the presentation engine.
         ///         Ids keep increasing across swapchain recreation (resize or set_present_mode).
-        /// @return The present id, 0 if there was no present yet or ImplicitFeatureFlagBits::PRESENT_WAIT is missing.
+        /// @return The present id, 0 if there was no present since the swapchain was last (re)created,
+        ///         ImplicitFeatureFlagBits::PRESENT_WAIT is missing or the surface does not support present ids.
         [[nodiscard]] auto current_present_id() const -> u64;
         /// @brief  Blocks until the present with the given id (or a later one) is visible on screen, or the timeout expires.
-        ///         Requires ImplicitFeatureFlagBits::PRESENT_WAIT.
+        ///         Requires ImplicitFeatureFlagBits::PRESENT_WAIT (VK_KHR_present_id2 and VK_KHR_present_wait2).
+        ///         Only ids returned by current_present_id since the swapchain was last (re)created may be waited for.
         /// THREADSAFETY:
         /// * may be called from another thread than the one presenting, but not while the swapchain is recreated or destroyed.
         /// @return True if the present is visible, false on timeout or if the swapchain is suboptimal or out of date.

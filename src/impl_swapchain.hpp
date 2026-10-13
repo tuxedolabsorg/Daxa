@@ -63,6 +63,9 @@ struct daxa_ImplSwapchain final : ImplHandle
     // Only this one can be waited for, a failed present never completes.
     u64 valid_present_id = {};
     u64 present_id_counter = {};
+    // The device has the present id 2 and present wait 2 features, the surface supports both and the current
+    // vk_swapchain was created with the flags for them.
+    bool present_wait_supported = {};
 
     void partial_cleanup();
     void full_cleanup();

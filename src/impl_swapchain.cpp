@@ -208,11 +208,17 @@ auto daxa_swp_current_present_id(daxa_Swapchain self) -> u64
 
 auto daxa_swp_wait_for_present(daxa_Swapchain self, u64 present_id, u64 timeout) -> daxa_Result
 {
-    if (self->device->vkWaitForPresentKHR == nullptr)
+    if (self->device->vkWaitForPresent2KHR == nullptr || !self->present_wait_supported)
     {
         return DAXA_RESULT_ERROR_FEATURE_NOT_PRESENT;
     }
-    return static_cast<daxa_Result>(self->device->vkWaitForPresentKHR(self->device->vk_device, self->vk_swapchain, present_id, timeout));
+    VkPresentWait2InfoKHR const present_wait_info{
+        .sType = VK_STRUCTURE_TYPE_PRESENT_WAIT_2_INFO_KHR,
+        .pNext = nullptr,
+        .presentId = present_id,
+        .timeout = timeout,
+    };
+    return static_cast<daxa_Result>(self->device->vkWaitForPresent2KHR(self->device->vk_device, self->vk_swapchain, &present_wait_info));
 }
 
 auto daxa_swp_info(daxa_Swapchain self) -> daxa_SwapchainInfo const *
@@ -265,6 +271,40 @@ auto daxa_ImplSwapchain::recreate() -> daxa_Result
         this->vk_surface,
         &surface_capabilities));
     _DAXA_RETURN_IF_ERROR(result, result)
+
+    // Present ids and waiting for them must be supported by the surface and requested when creating the swapchain.
+    // Ids of the previous vk_swapchain can not be waited for on the new one.
+    this->present_wait_supported = false;
+    this->valid_present_id = 0;
+    if ((this->device->properties.implicit_features & DAXA_IMPLICIT_FEATURE_FLAG_PRESENT_WAIT) != 0)
+    {
+        VkSurfaceCapabilitiesPresentWait2KHR present_wait_capabilities{
+            .sType = VK_STRUCTURE_TYPE_SURFACE_CAPABILITIES_PRESENT_WAIT_2_KHR,
+            .pNext = nullptr,
+        };
+        VkSurfaceCapabilitiesPresentId2KHR present_id_capabilities{
+            .sType = VK_STRUCTURE_TYPE_SURFACE_CAPABILITIES_PRESENT_ID_2_KHR,
+            .pNext = &present_wait_capabilities,
+        };
+        VkSurfaceCapabilities2KHR surface_capabilities_2{
+            .sType = VK_STRUCTURE_TYPE_SURFACE_CAPABILITIES_2_KHR,
+            .pNext = &present_id_capabilities,
+        };
+        VkPhysicalDeviceSurfaceInfo2KHR const surface_info{
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SURFACE_INFO_2_KHR,
+            .pNext = nullptr,
+            .surface = this->vk_surface,
+        };
+        result = static_cast<daxa_Result>(vkGetPhysicalDeviceSurfaceCapabilities2KHR(
+            this->device->vk_physical_device,
+            &surface_info,
+            &surface_capabilities_2));
+        _DAXA_RETURN_IF_ERROR(result, result)
+        this->present_wait_supported = present_id_capabilities.presentId2Supported == VK_TRUE && present_wait_capabilities.presentWait2Supported == VK_TRUE;
+    }
+    VkSwapchainCreateFlagsKHR const swapchain_create_flags = this->present_wait_supported
+        ? (VK_SWAPCHAIN_CREATE_PRESENT_ID_2_BIT_KHR | VK_SWAPCHAIN_CREATE_PRESENT_WAIT_2_BIT_KHR)
+        : 0;
 
     surface_extent.width = surface_capabilities.currentExtent.width;
     surface_extent.height = surface_capabilities.currentExtent.height;
@@ -319,7 +359,7 @@ auto daxa_ImplSwapchain::recreate() -> daxa_Result
     VkSwapchainCreateInfoKHR const swapchain_create_info{
         .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
         .pNext = nullptr,
-        .flags = 0,
+        .flags = swapchain_create_flags,
         .surface = this->vk_surface,
         .minImageCount = 3,
         .imageFormat = this->vk_surface_format.format,

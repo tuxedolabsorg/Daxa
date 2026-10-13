@@ -33,6 +33,8 @@ auto daxa_create_instance(daxa_InstanceInfo const * info, daxa_Instance * out_in
     implicit_extensions.push_back("VK_KHR_xlib_surface");
     implicit_extensions.push_back("VK_KHR_wayland_surface");
     implicit_extensions.push_back("VK_EXT_swapchain_colorspace");
+    // Required by VK_KHR_present_id2 and VK_KHR_present_wait2, whose support is reported per surface.
+    implicit_extensions.push_back(VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME);
 
     // Check existence of extensions:
     std::vector<VkExtensionProperties> instance_extensions = {};

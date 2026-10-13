@@ -188,18 +188,18 @@ namespace daxa
             chain = static_cast<void *>(&physical_device_pipeline_library_group_handles_ext);
         }
 
-        if (extensions.extensions_present[extensions.physical_device_present_id_khr])
+        if (extensions.extensions_present[extensions.physical_device_present_id_2_khr])
         {
-            physical_device_present_id_features_khr.pNext = chain;
-            physical_device_present_id_features_khr.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_ID_FEATURES_KHR;
-            chain = static_cast<void *>(&physical_device_present_id_features_khr);
+            physical_device_present_id_2_features_khr.pNext = chain;
+            physical_device_present_id_2_features_khr.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_ID_2_FEATURES_KHR;
+            chain = static_cast<void *>(&physical_device_present_id_2_features_khr);
         }
 
-        if (extensions.extensions_present[extensions.physical_device_present_wait_khr])
+        if (extensions.extensions_present[extensions.physical_device_present_wait_2_khr])
         {
-            physical_device_present_wait_features_khr.pNext = chain;
-            physical_device_present_wait_features_khr.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_WAIT_FEATURES_KHR;
-            chain = static_cast<void *>(&physical_device_present_wait_features_khr);
+            physical_device_present_wait_2_features_khr.pNext = chain;
+            physical_device_present_wait_2_features_khr.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_WAIT_2_FEATURES_KHR;
+            chain = static_cast<void *>(&physical_device_present_wait_2_features_khr);
         }
 
         physical_device_shader_demote_to_helper_invocation_features.pNext = chain;
@@ -373,8 +373,8 @@ namespace daxa
     };
 
     constexpr static std::array DAXA_IMPLICIT_FEATURE_FLAG_PRESENT_WAIT_VK_FEATURES = std::array{
-        offsetof(PhysicalDeviceFeaturesStruct, physical_device_present_id_features_khr.presentId),
-        offsetof(PhysicalDeviceFeaturesStruct, physical_device_present_wait_features_khr.presentWait),
+        offsetof(PhysicalDeviceFeaturesStruct, physical_device_present_id_2_features_khr.presentId2),
+        offsetof(PhysicalDeviceFeaturesStruct, physical_device_present_wait_2_features_khr.presentWait2),
     };
 
     constexpr static std::array DAXA_IMPLICIT_FEATURE_FLAG_CALIBRATED_TIMESTAMPS_VK_FEATURES = std::array{
