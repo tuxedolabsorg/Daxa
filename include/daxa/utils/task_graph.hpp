@@ -59,6 +59,16 @@ namespace daxa
         std::string_view name = {};
     };
 
+    struct TaskCommandListInterface
+    {
+        Device & device;
+        CommandRecorder & recorder;
+        // Zero for the pre callback, which may set it to pass a value on to the post callback of the same command list
+        u64 & user_data;
+        Queue queue = {};
+        u32 submit_index = {};
+    };
+
     struct TaskGraphInfo
     {
         Device device = {};
@@ -92,6 +102,11 @@ namespace daxa
         // Useful for reflection/ debugging.
         std::function<void(TaskInterface)> pre_task_callback = {};
         std::function<void(TaskInterface)> post_task_callback = {};
+        /// @brief  Called first and last for every command list task graph records, one per queue per submit.
+        ///         Unlike the task callbacks, these enclose everything task graph records itself: image initialization
+        ///         barriers, resource clears, barriers between batches and the swapchain transition to present.
+        std::function<void(TaskCommandListInterface)> pre_command_list_callback = {};
+        std::function<void(TaskCommandListInterface)> post_command_list_callback = {};
         Queue default_queue = QUEUE_MAIN;
         std::string_view name = {};
     };
