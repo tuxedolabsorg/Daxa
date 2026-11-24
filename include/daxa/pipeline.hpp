@@ -64,6 +64,10 @@ namespace daxa
         Span<struct RayTracingPipelineLibrary const> pipeline_libraries = {};
         u32 max_ray_recursion_depth = {};
         u32 push_constant_size = DAXA_MAX_PUSH_CONSTANT_BYTE_SIZE;
+        /// These 2 fields are only used by pipeline libraries and their linked pipeline; must be identical for a pipeline and all its libraries.
+        u32 max_ray_payload_size = DAXA_DEFAULT_RAY_PAYLOAD_BYTE_SIZE;
+        /// Must be >= the largest hitAttributeEXT of any shader. 0 means the device maximum (maxRayHitAttributeSize).
+        u32 max_ray_hit_attribute_size = {};
         SmallString name = {};
     };
 

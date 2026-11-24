@@ -39,29 +39,33 @@ static daxa_RayTracingShaderGroupInfo const DAXA_DEFAULT_RAY_TRACING_SHADER_GROU
 typedef struct
 {
     daxa_SpanToConst(daxa_RayTracingShaderInfo) ray_gen_stages;
-    daxa_SpanToConst(daxa_RayTracingShaderInfo) miss_stages;
-    daxa_SpanToConst(daxa_RayTracingShaderInfo) callable_stages;
     daxa_SpanToConst(daxa_RayTracingShaderInfo) intersection_stages;
-    daxa_SpanToConst(daxa_RayTracingShaderInfo) closest_hit_stages;
     daxa_SpanToConst(daxa_RayTracingShaderInfo) any_hit_stages;
+    daxa_SpanToConst(daxa_RayTracingShaderInfo) callable_stages;
+    daxa_SpanToConst(daxa_RayTracingShaderInfo) closest_hit_stages;
+    daxa_SpanToConst(daxa_RayTracingShaderInfo) miss_stages;
     daxa_SpanToConst(daxa_RayTracingShaderGroupInfo) shader_groups;
     daxa_SpanToConst(daxa_RayTracingPipelineLibrary) pipeline_libraries;
     uint32_t max_ray_recursion_depth;
     uint32_t push_constant_size;
+    uint32_t max_ray_payload_size;
+    uint32_t max_ray_hit_attribute_size;
     daxa_SmallString name;
 } daxa_RayTracingPipelineInfo;
 
 static daxa_RayTracingPipelineInfo const DAXA_DEFAULT_RAY_TRACING_PIPELINE_INFO = {
     .ray_gen_stages = DAXA_ZERO_INIT,
-    .miss_stages = DAXA_ZERO_INIT,
-    .callable_stages = DAXA_ZERO_INIT,
     .intersection_stages = DAXA_ZERO_INIT,
-    .closest_hit_stages = DAXA_ZERO_INIT,
     .any_hit_stages = DAXA_ZERO_INIT,
+    .callable_stages = DAXA_ZERO_INIT,
+    .closest_hit_stages = DAXA_ZERO_INIT,
+    .miss_stages = DAXA_ZERO_INIT,
     .shader_groups = DAXA_ZERO_INIT,
     .pipeline_libraries = DAXA_ZERO_INIT,
     .max_ray_recursion_depth = DAXA_ZERO_INIT,
     .push_constant_size = DAXA_MAX_PUSH_CONSTANT_BYTE_SIZE,
+    .max_ray_payload_size = DAXA_DEFAULT_RAY_PAYLOAD_BYTE_SIZE,
+    .max_ray_hit_attribute_size = DAXA_ZERO_INIT,
     .name = DAXA_ZERO_INIT,
 };
 

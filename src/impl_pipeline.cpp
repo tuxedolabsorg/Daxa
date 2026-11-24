@@ -636,17 +636,25 @@ auto daxa_dvc_create_ray_tracing_pipeline_or_library(daxa_Device device, daxa_Ra
         .basePipelineIndex = 0,
     };
 
+    // The interface must cover every payload and hit attribute used by any shader in the libraries,
+    // otherwise the driver may truncate them (e.g. intersection shader attributes reading as 0).
     VkRayTracingPipelineInterfaceCreateInfoKHR library_interface_info{
         .sType = VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_INTERFACE_CREATE_INFO_KHR,
         .pNext = nullptr,
-        .maxPipelineRayPayloadSize = 256,
-        .maxPipelineRayHitAttributeSize = 4,
+        .maxPipelineRayPayloadSize = ret.info.max_ray_payload_size != 0 ? ret.info.max_ray_payload_size : DAXA_DEFAULT_RAY_PAYLOAD_BYTE_SIZE,
+        .maxPipelineRayHitAttributeSize = ret.info.max_ray_hit_attribute_size != 0 ? ret.info.max_ray_hit_attribute_size : ret.device->properties.ray_tracing_pipeline_properties.value.max_ray_hit_attribute_size,
     };
 
     std::vector<VkPipeline> libraries;
     libraries.reserve(ret.info.pipeline_libraries.size());
     for (auto & pipeline_library : ret.info.pipeline_libraries)
+    {
         libraries.push_back(pipeline_library.get()->vk_pipeline);
+        // A linked pipeline's groups are its own groups followed by each library's groups, in library order.
+        // Track them so get_shader_group_handles can infer the group count of a linked pipeline.
+        // NOTE: The shader indices in these groups are relative to their library.
+        ret.shader_groups.insert(ret.shader_groups.end(), pipeline_library.get()->shader_groups.begin(), pipeline_library.get()->shader_groups.end());
+    }
 
     auto pipeline_library_info = VkPipelineLibraryCreateInfoKHR{
         .sType = VK_STRUCTURE_TYPE_PIPELINE_LIBRARY_CREATE_INFO_KHR,
@@ -713,6 +721,13 @@ auto daxa_ray_tracing_pipeline_create_default_sbt(daxa_RayTracingPipeline pipeli
 {
     auto & info = pipeline->info;
     auto * device = pipeline->device;
+
+    // Groups are classified using the shader counts of this pipeline's own info, which does not hold for linked pipelines.
+    if (!info.pipeline_libraries.empty())
+    {
+        _DAXA_DEBUG_BREAK
+        return DAXA_RESULT_ERROR_FEATURE_NOT_PRESENT;
+    }
 
     u32 const raygen_count = static_cast<u32>(info.ray_gen_shaders.size());
     u32 const intersection_count = static_cast<u32>(info.intersection_shaders.size());
